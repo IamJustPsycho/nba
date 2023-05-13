@@ -7,7 +7,7 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
 # Allows controlling a vehicle with a keyboard. For a simpler and more
-# documented example, please take a look at tutorial.py.
+# documented example, please take a look at tutorial.py
 
 """
 Welcome to CARLA manual control.
@@ -65,6 +65,14 @@ from __future__ import print_function
 import glob
 import os
 import sys
+# Carla-Python-API wird importiert.
+# Hier ist wichtig, dass Carla-package 3.7 nur mit Python 3.7 funktioniert
+# Importierte Packages müssen der Python-Version entsprechen. Sie sind nicht abwärts kompatibel.
+# Packages sind hier zu finden C:\path\to\carla\root\PythonAPI\carla\dist
+# Im Normalfall wird Carla wird im Verzeichnis C:\path\to\carla\root installiert.
+# Nach der Intallation kann Carla lokal gestartet werden.
+# Carla muss im PATH bekannt gegeben werden und danach durch den Aufruf von  "CarlaUE4 -dx11" gestartet werden
+# Beispiele für den API-Einsatz sind hier zu finden C:\path\to\carla\root\PythonAPI\examples
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
