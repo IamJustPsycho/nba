@@ -923,6 +923,7 @@ class AEBS(object):
                     else:
                         # Warning acknowledged, hide warning image
                         pygame.quit()
+                        
                         return
 
 
