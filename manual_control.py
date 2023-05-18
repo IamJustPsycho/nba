@@ -79,7 +79,7 @@ except IndexError:
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
 
-
+#CarlaUE4 -dx11
 import carla
 
 from carla import ColorConverter as cc
