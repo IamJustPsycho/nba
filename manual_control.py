@@ -92,7 +92,8 @@ import math
 import random
 import re
 import weakref
-import cv2 #pip3 install opencv-python
+import cv2
+#pip3 install opencv-python
 
 
 try:
