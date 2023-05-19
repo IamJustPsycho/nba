@@ -160,7 +160,20 @@ g_distance = 0
 g_interrupt = False
 g_player_action = False
 
-pygame.init()
+#pygame.init()
+#size = width, height = 720, 480
+#speed = [2, 2]
+#black = (0, 0, 0)
+#blue = (0,0,255)
+#green = (0,255,0)
+#red = (255,0,0)
+
+#screen = pygame.display.set_mode(size)
+#screen.fill((blue))
+
+#pygame.display.set_caption("BETA::00.0.1")
+
+#clock = pygame.time.Clock()
 
 
 # ==============================================================================
@@ -879,7 +892,7 @@ class HelpText(object):
 class AEBS(object):
     def __init__(self, parent_actor, hud, world):
         self.active = True
-        self.warning_image = pygame.image.load("./images/warning.png")
+        self.warning_image = pygame.image.load("./images/warning-sign.jpg")
         self.hud = hud
         self.player = parent_actor
         self.speed = 0
@@ -1514,8 +1527,8 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='1280x720',
-        help='window resolution (default: 1280x720)')
+        default='720x480',
+        help='window resolution (default: 720x480)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
