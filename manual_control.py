@@ -436,7 +436,8 @@ class KeyboardControl(object):
                     return True
                 elif event.key == K_u:
                     world.aebs.toggle_aebs()
-                    
+                    if world.hud.warnleuchte is not None:
+                        world.hud.warnleuchte.reset(world.hud.warnleuchte)
                 elif event.key == K_BACKSPACE:
                     if self._autopilot_enabled:
                         world.player.set_autopilot(False)
@@ -671,12 +672,116 @@ class KeyboardControl(object):
 # -- DashBoard------------------------------------------------------------------
 # https://www.pygame.org/docs/ref/draw.html
 # ==============================================================================
-class DashBoard(object):
-    def __init__(self, widthDashBoard, heightDashBoard):
-        self.screen = None
+class Warnleuchte:
 
-    def repant(aebs_ein, geschwindigkeit, entfernungZumHindernis):
-        screen = None
+    __world = None #Link zu der Welt
+    #__display = None #Link auf Screen, wo die Leuchte angezeigt werden soll
+    #__hud = None #Link auf Anzeige-Instrumente (falls überhaupt nötig)
+    #__aebs = None #Link auf das NBA, um zustände abzufrage und um benachrichtigt zu werden, fall ein Zustand sich ändert.
+
+    #Alle möglichen Zustände der Warnleute am InstrumentenBrett
+    __ZUSTAND_NOT_INIT = "zustand_not_init"
+    __ZUSTAND_ERROR = "zustand_error"
+    __ZUSTAND_INIT = "zustand_init"
+    __ZUSTAND_AUS = "zustand_aus"
+    __ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+    __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+    __ZUSTAENDE_LIST = (__ZUSTAND_NOT_INIT, __ZUSTAND_ERROR, __ZUSTAND_INIT, __ZUSTAND_AUS, __ZUSTAND_WARNUNG_LOW, __ZUSTAND_WARNUNG_HIGH) #tuple, zur Laufzeit unveränderbare Liste
+    __zustand = __ZUSTAND_NOT_INIT #Akueller Stand im Augenblick __zustaende[0]
+
+    __displayChecked = False
+    __displayCheckedStatus = __ZUSTAND_NOT_INIT
+    __displayCheckedTicker = 1
+
+
+    def __init__(self):
+        self.reset(self)
+
+    def reset(self):
+        self.__displayChecked = False
+        self.__displayCheckedStatus = self.__ZUSTAND_NOT_INIT
+        self.__displayCheckedTicker = 1
+
+    def displayCheck(self, display, checkTickInMillis): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
+        if self.__displayChecked == False:
+            self.__displayCheckedTicker = self.__displayCheckedTicker + 1
+            print(f"displayCheckedTicker={self.__displayCheckedTicker}")
+
+            # alle Leuchten leuchten für einen Augenblick auf
+            ticker = 10
+            if self.__displayCheckedTicker >= 0 and self.__displayCheckedTicker<ticker*2:
+                self.__zustand = self.__ZUSTAND_NOT_INIT
+                self.paint(self,display)
+                return
+            if self.__displayCheckedTicker>=ticker*2 and self.__displayCheckedTicker<ticker*3:
+                self.__zustand = self.__ZUSTAND_ERROR
+                self.paint(self,display)
+                return
+            if self.__displayCheckedTicker>=ticker*3 and self.__displayCheckedTicker<ticker*4:
+                self.__zustand = self.__ZUSTAND_INIT
+                self.paint(self,display)
+                return
+            if self.__displayCheckedTicker>=ticker*4 and self.__displayCheckedTicker<ticker*5:
+                self.__zustand = self.__ZUSTAND_AUS
+                self.paint(self,display)
+                return
+            if self.__displayCheckedTicker>=ticker*5 and self.__displayCheckedTicker<ticker*6:
+                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                self.paint(self,display)
+                return
+            if self.__displayCheckedTicker>=ticker*6 and self.__displayCheckedTicker<ticker*7:
+                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                self.paint(self,display)
+                return
+            self.__displayChecked = True
+            return
+
+
+            # Check: AEBS ist ausgeschaltet
+            # Gelb, langsam blinkend
+
+            # Check: AEBS ist eingeschaltet
+            # Dunkel-Grün, kaum bemerkbar
+
+            # Check: Warnung vor Kollistion (z.B. unter 10m bei 20km/h, 50m bei 50km/h, 150m bei 200km/h)
+            # Gelb
+
+            # Check: Warnung vor Kollistion (z.B. unter 20m bei 20km/h, 25m bei 50km/h, 100m bei 200km/h)
+            # Rot
+        else: return
+
+
+#    def render2(self):
+#        if self.__aebs != None and  self.__hud != None and self.__surface != None:
+#           self.repaint(self, self.__aebs, self.__hud, self.__surface)
+#        else: print("Warning: Warnleuchte.repaint() nicht möglich")
+
+    def render(self, display):
+        if display is not None:
+            if self.__displayChecked == True:
+                self.paint(self,display)
+            else: self.displayCheck(self, display, 1000)  #pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+        else: print("no rendering, display is  None")
+
+    def paint(self,display):
+        if self.__zustand == self.__ZUSTAND_NOT_INIT:
+            pygame.draw.rect(display, "white", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
+        if self.__zustand == self.__ZUSTAND_ERROR:
+            pygame.draw.rect(display, "red", [460, 120, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
+        if self.__zustand == self.__ZUSTAND_INIT:
+            pygame.draw.rect(display, "blue", [470, 130, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
+        if self.__zustand == self.__ZUSTAND_AUS:
+            pygame.draw.rect(display, "green", [480, 140, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
+        if self.__zustand == self.__ZUSTAND_WARNUNG_LOW:
+            pygame.draw.rect(display, "black", [490, 150, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
+        if self.__zustand == self.__ZUSTAND_WARNUNG_HIGH:
+            pygame.draw.rect(display, "yellow", [500, 160, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            return
 
 
 # ==============================================================================
@@ -685,6 +790,8 @@ class DashBoard(object):
 
 
 class HUD(object):
+    warnleuchte = None  # Anzeige der AEBS-Warnleuchte im Display
+
     def __init__(self, width, height):
         self.dim = (width, height)
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
@@ -703,6 +810,7 @@ class HUD(object):
         self._info_text = []
         self._server_clock = pygame.time.Clock()
 
+
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
@@ -710,6 +818,10 @@ class HUD(object):
         self.simulation_time = timestamp.elapsed_seconds
 
     def tick(self, world, clock):
+        if self.warnleuchte is None:
+            self.warnleuchte = Warnleuchte #Erzeugen einer Instanz der Klasse für die Anzeige am Bildschirm
+            self.warnleuchte.__world = world #Zugriff auf world ermöglichen
+
         self._notifications.tick(world, clock)
         if not self._show_info:
             return
@@ -822,10 +934,11 @@ class HUD(object):
         self._notifications.render(display)
         self.help.render(display)
 
-        #w, h = pygame.display.get_surface().get_size()
-        #print(w)
-        #print(h)
+        #w, h = pygame.display.get_surface().get_size()         #print(w)         #print(h)
         #pygame.draw.rect(display, "red", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+        if self.warnleuchte is not None:
+         self.warnleuchte.render(self.warnleuchte,display)
+        else: print("warnleuchte is None")
 
 
 # ==============================================================================
@@ -1044,7 +1157,7 @@ class AEBS(object):
         self.mixer.music.load("collision.mp3")
         self.mixer.music.play()
         screen = pygame.display.set_mode((300, 300))
-        screen.blit(self.warning_image, (0, 0))
+        screen.blit(self.warning_imagewarning_image, (0, 0))
         pygame.display.flip()
         # Wait for warning to be acknowledged
         while True:
