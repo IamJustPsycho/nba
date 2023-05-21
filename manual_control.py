@@ -735,13 +735,15 @@ class Warnleuchte:
 
                     currentAebsSpeed = self.__world.aebs.speed
 
-                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
+                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen. Wird am 21.05.2023 nicht von Alexander verwendet, weil noch nicht genau.
 
                     currentObstacleDistance = self.__world.obstacle_sensor.getCurrentObstacleDictance(1000) #maximal eine Sekunde alt, sonst 0.
                     if currentObstacleDistance>0:
                         currentAebsDistance = currentObstacleDistance # Überschreiben, weil am 21.05.2023 POC-Obstacle gemacht wird. Es scheint besser zu funktionieren als im AEBS
+                        print("Abstand aus dem ObstacleSensor")
                     else:
                         currentAebsDistance = g_least_distance  # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
+                        #print("Warnung: Abstand direkt aus der Karte")
 
                     activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
                     rueckwaertsgang = self.__world.player.get_control().reverse
@@ -1690,13 +1692,11 @@ class ObstacleSensor:
                 #Zeit vergleichen
                 myTimeStamp = self.__current_obstacle['myTimeStamp']
                 timeStamp = time.time()
-                #t1 = datetime.strptime(myTimeStamp, "%b %d %H:%M:%S %Y")
-                #t2 = datetime.strptime(timeStamp, "%b %d %H:%M:%S %Y")
                 t_diff = timeStamp-myTimeStamp
-                if (t_diff < maxAlterDesHindernissesInMillis):
+                if (t_diff < maxAlterDesHindernissesInMillis/1000):
                     return distance
                 else:
-                    print(f"Hindernis veraltet, Alter in Millis={t_diff:.2f}")
+                    #print(f"Hindernis veraltet, Alter in Millis={t_diff:.2f}")
                     return 0.0
             else: return 0.0
         except Exception as e:
