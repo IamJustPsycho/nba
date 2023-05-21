@@ -734,8 +734,14 @@ class Warnleuchte:
                     self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
 
                     currentAebsSpeed = self.__world.aebs.speed
+
                     currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
-                    currentAebsDistance = g_least_distance # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
+
+                    currentObstacleDistance = self.__world.obstacle_sensor.getCurrentObstacleDictance(1000) #maximal eine Sekunde alt, sonst 0.
+                    if currentObstacleDistance>0:
+                        currentAebsDistance = currentObstacleDistance # Überschreiben, weil am 21.05.2023 POC-Obstacle gemacht wird. Es scheint besser zu funktionieren als im AEBS
+                    else:
+                        currentAebsDistance = g_least_distance  # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
 
                     activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
                     rueckwaertsgang = self.__world.player.get_control().reverse
@@ -1671,6 +1677,35 @@ class ObstacleSensor:
                      }
     __current_obstacle = []
 
+    def getCurrentObstacleDictance(self, maxAlterDesHindernissesInMillis):
+        try:
+            if len(self.__current_obstacle) > 0:
+                type_id = self.__current_obstacle['type_id']
+                distance = self.__current_obstacle['distance']
+                frame = self.__current_obstacle['frame']
+                timestamp = self.__current_obstacle['timestamp']
+                actor = self.__current_obstacle['actor']
+                other_actor = self.__current_obstacle['other_actor']
+                #print(f"last obstacle,{type_id},{distance:.2f},{frame},{timestamp},actor={actor},other_actor={other_actor}")
+                #Zeit vergleichen
+                myTimeStamp = self.__current_obstacle['myTimeStamp']
+                timeStamp = time.time()
+                #t1 = datetime.strptime(myTimeStamp, "%b %d %H:%M:%S %Y")
+                #t2 = datetime.strptime(timeStamp, "%b %d %H:%M:%S %Y")
+                t_diff = timeStamp-myTimeStamp
+                if (t_diff < maxAlterDesHindernissesInMillis):
+                    return distance
+                else:
+                    print(f"Hindernis veraltet, Alter in Millis={t_diff:.2f}")
+                    return 0.0
+            else: return 0.0
+        except Exception as e:
+            print(type(e))  # the exception type
+            print(e.args)  # arguments stored in .args
+            print(e)  # __str__ allows args to be printed directly,
+            return 0.0 #keine Hindernisse
+
+
     def __init__(self, _player, _world):
         self.__world = _world
         self.__player = _player
@@ -1710,11 +1745,11 @@ class ObstacleSensor:
 
     def __obstacle_callback(self, event, data_dict, camera, k_mat): # call back des Obstacle Sensors
         self.__obstacle_sensor_callback_counter = self.__obstacle_sensor_callback_counter + 1
-        print(f"def __obstacle_callback(....)={self.__obstacle_sensor_callback_counter}")
+        #print(f"def __obstacle_callback(....)={self.__obstacle_sensor_callback_counter}")
         if 'static' not in event.other_actor.type_id: #"static" wird vermutlich alle Objekte wie ein Gebäude ausschließen
             #data_dict['obstacle'].append({'transform': event.other_actor.type_id, 'frame': event.frame})
-            self.__current_obstacle = {'transform': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance}
-            print(f"Obstacle_event_distance in Meter={event.distance}") # distance https://carla.readthedocs.io/en/0.9.12/python_api/#instance-variables_38
+            self.__current_obstacle = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
+            #print(f"Obstacle_event_distance in Meter={event.distance}") # distance https://carla.readthedocs.io/en/0.9.12/python_api/#instance-variables_38
             #print(f"Changed __current_bstacle={self.__current_obstacle}, other actor={event.other_actor}")
             #print(f"event.other_actor.attributes={event.other_actor.attributes}")
             #print(f"event.other_actor.type_id={event.other_actor.type_id}")
@@ -1732,13 +1767,14 @@ class ObstacleSensor:
 
         #print(data_dict) #like {'rgb_image': array([], shape=(0, 0, 4), dtype=float64), 'obstacle': [{'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2728}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2729}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2737}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2738}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2739}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2740}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2741}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2742}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2743}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2744}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2745}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2746}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2747}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2748}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2749}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2750}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2751}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2752}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2753}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2886}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2887}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2888}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2889}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2890}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2891}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2892}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2893}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2894}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2895}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2896}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2897}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2900}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2901}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2902}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2903}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2906}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2907}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2908}]}
 
-        world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
-        image_point = self.__get_image_point(event.other_actor.get_transform().location, k_mat, world_2_camera)
-        if 0 < image_point[0] < self.__image_w and 0 < image_point[1] < self.__image_h:
-            print(f"Changed __current_bstacle=Error")
-            cv2.circle(data_dict['rgb_image'], tuple(image_point), 10, (0, 0, 255), 3)
-        else:
-            print(f"Changed __current_bstacle={image_point[0], image_point[1], self.__image_w, self.__image_h}")
+        #nächste Abschnitt sollte eigentlich das Objekt markieren, aber es klappt irgendwie nicht
+        #world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
+        #image_point = self.__get_image_point(event.other_actor.get_transform().location, k_mat, world_2_camera)
+        #if 0 < image_point[0] < self.__image_w and 0 < image_point[1] < self.__image_h:
+        #    print(f"Changed __current_bstacle=Error")
+        #    cv2.circle(data_dict['rgb_image'], tuple(image_point), 10, (0, 0, 255), 3)
+        #else:
+        #    print(f"Changed __current_bstacle={image_point[0], image_point[1], self.__image_w, self.__image_h}")
 
     def __get_image_point(self, loc, K, w2c):
         # Calculate 2D projection of 3D coordinate
