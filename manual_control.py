@@ -694,14 +694,79 @@ class Warnleuchte:
     __displayCheckedStatus = __ZUSTAND_NOT_INIT
     __displayCheckedTicker = 1
 
+    def setWorld(self, world):
+        self.__world = world
 
     def __init__(self):
         self.reset(self)
 
-    def __aktualisiereZustand(self):
+    def __aktualisiereZustand(self): # no return, only check and setting of the actual status value
         if self.__world is None:
             self.__zustand = self.__ZUSTAND_ERROR
-        else: self.__zustand = self.__ZUSTAND_ERROR
+            print(f"Die Warnleuchte kenn die Welt nicht. Warnleuchte-Zustand={self.__zustand}")
+        elif self.__world is not None:
+            if self.__world.aebs is None:
+                self.__zustand = self.__ZUSTAND_ERROR
+                print(f"Die Warnleuchte kenn die Welt, aber das Objekt AEBS ist nicht initialisiert. Warnleuchte-Zustand={self.__zustand}")
+            else: # Welt ist bekannt, AEBS ist bekannt
+                #self.__world.aebs.get_current_speed(self.__world)
+                if self.__world.aebs.active == True:
+                    self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
+                    #self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
+                    currenAebsSpeed = self.__world.aebs.speed
+                    #self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
+                    currenAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
+                    if currenAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
+                        self.__zustand = self.__ZUSTAND_INIT
+                    elif currenAebsSpeed < 15: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
+                        self.__zustand = self.__ZUSTAND_INIT
+                    elif currenAebsSpeed < 20:
+                        if currenAebsDistance <= 0:
+                            self.__zustand = self.__ZUSTAND_UNFALL
+                        elif currenAebsDistance < 5:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                        elif currenAebsDistance < 10:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                        elif currenAebsDistance >= 10:
+                            self.__zustand = self.__ZUSTAND_INIT
+                        else:
+                            self.__zustand = self.__ZUSTAND_ERROR
+                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                    elif currenAebsSpeed < 50:
+                        if currenAebsDistance <= 0:
+                            self.__zustand = self.__ZUSTAND_UNFALL
+                        elif currenAebsDistance < 15:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                        elif currenAebsDistance < 25:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                        elif currenAebsDistance >= 25:
+                            self.__zustand = self.__ZUSTAND_INIT
+                        else:
+                            self.__zustand = self.__ZUSTAND_ERROR
+                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                    elif currenAebsSpeed < 100:
+                        if currenAebsDistance <= 0:
+                            self.__zustand = self.__ZUSTAND_UNFALL
+                        elif currenAebsDistance < 50:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                        elif currenAebsDistance < 100:
+                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                        elif currenAebsDistance >= 100:
+                            self.__zustand = self.__ZUSTAND_INIT
+                        else:
+                            self.__zustand = self.__ZUSTAND_ERROR
+                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                    else:
+                        self.__zustand = self.__ZUSTAND_ERROR
+                        print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+
+                else: # AEBS ist ausgeschlatet, weil z.B. das Fahrzeug zu langsam ist
+                    self.__zustand = self.__ZUSTAND_AUS
+                    print(f"Hinweis: AEBS aus, Warnleuchte im Status={self.__zustand}")
+
+        else:
+            self.__zustand = self.__ZUSTAND_ERROR
+            print(f"Die Warnleuchte kann den aktuellen eigen Zustand nicht ermitteln. Der Fehler is unbekannt. Zustand={self.__zustand}")
 
     def reset(self):
         self.__displayChecked = False
@@ -711,7 +776,7 @@ class Warnleuchte:
     def __displayCheck(self, display): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
         if self.__displayChecked == False:
             self.__displayCheckedTicker = self.__displayCheckedTicker + 1
-            print(f"displayCheckedTicker={self.__displayCheckedTicker}")
+            #print(f"displayCheckedTicker={self.__displayCheckedTicker}")
 
             # alle Leuchten leuchten für einen Augenblick auf
             ticker = 10
@@ -782,7 +847,7 @@ class Warnleuchte:
     def __findColorByZusand(self, zustand):
         WHITE = (255, 255, 255)
         BLUE = (0, 0, 255)
-        GREEN = (0, 255, 0)
+        GREEN = (31, 94, 10) #GREEN = (0, 255, 0)
         RED = (255, 0, 0)
         ORANGE = (255,165,0)
         BLACK = TEXTCOLOR = (0, 0, 0)
@@ -867,9 +932,10 @@ class HUD(object):
         self.simulation_time = timestamp.elapsed_seconds
 
     def tick(self, world, clock):
+
         if self.warnleuchte is None:
             self.warnleuchte = Warnleuchte #Erzeugen einer Instanz der Klasse für die Anzeige am Bildschirm
-            self.warnleuchte.__world = world #Zugriff auf world ermöglichen
+            self.warnleuchte.setWorld(self.warnleuchte, world) #self.warnleuchte.__world = world #Zugriff auf world ermöglichen
 
         self._notifications.tick(world, clock)
         if not self._show_info:
@@ -983,11 +1049,9 @@ class HUD(object):
         self._notifications.render(display)
         self.help.render(display)
 
-        #w, h = pygame.display.get_surface().get_size()         #print(w)         #print(h)
-        #pygame.draw.rect(display, "red", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
         if self.warnleuchte is not None:
          self.warnleuchte.render(self.warnleuchte,display)
-        else: print("warnleuchte is None")
+        else: print("Fehler: HUD.warnleuchte is None")
 
 
 # ==============================================================================
