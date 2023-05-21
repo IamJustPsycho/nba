@@ -732,16 +732,15 @@ class Warnleuchte:
                     elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
 
                         #Faust-Formel aus der Fahrschule
-                        bremsweg = (currentAebsSpeed / 10) ** 2
-                        reaktionsweg = (currentAebsSpeed / 10) * 3
+                        bremsweg = (currentAebsSpeed / 10) * (currentAebsSpeed / 10) #Fahrschul-Formel
+                        reaktionsweg = (currentAebsSpeed / 10) * 3 #Fahrschul-Formel
 
                         # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
                         bremsweg = bremsweg / 2
                         reaktionsweg = reaktionsweg / 2
 
                         # Zu Testzwecken um 50% verringern. (!)
-                        anhalteWeg = (bremsweg + reaktionsweg)
-                        anhalteWeg = anhalteWeg
+                        anhalteWeg = bremsweg + reaktionsweg
                         anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
                         anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
                         if currentAebsDistance <= 0: #keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
