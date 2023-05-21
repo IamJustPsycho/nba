@@ -686,7 +686,8 @@ class Warnleuchte:
     __ZUSTAND_AUS = "zustand_aus"
     __ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
     __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
-    __ZUSTAENDE_LIST = (__ZUSTAND_NOT_INIT, __ZUSTAND_ERROR, __ZUSTAND_INIT, __ZUSTAND_AUS, __ZUSTAND_WARNUNG_LOW, __ZUSTAND_WARNUNG_HIGH) #tuple, zur Laufzeit unveränderbare Liste
+    __ZUSTAND_UNFALL = "zustand_unfall"
+    __ZUSTAENDE_LIST = (__ZUSTAND_NOT_INIT, __ZUSTAND_ERROR, __ZUSTAND_INIT, __ZUSTAND_AUS, __ZUSTAND_WARNUNG_LOW, __ZUSTAND_WARNUNG_HIGH, __ZUSTAND_UNFALL) #tuple, zur Laufzeit unveränderbare Liste
     __zustand = __ZUSTAND_NOT_INIT #Akueller Stand im Augenblick __zustaende[0]
 
     __displayChecked = False
@@ -697,12 +698,17 @@ class Warnleuchte:
     def __init__(self):
         self.reset(self)
 
+    def __aktualisiereZustand(self):
+        if self.__world is None:
+            self.__zustand = self.__ZUSTAND_ERROR
+        else: self.__zustand = self.__ZUSTAND_ERROR
+
     def reset(self):
         self.__displayChecked = False
         self.__displayCheckedStatus = self.__ZUSTAND_NOT_INIT
         self.__displayCheckedTicker = 1
 
-    def displayCheck(self, display, checkTickInMillis): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
+    def __displayCheck(self, display): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
         if self.__displayChecked == False:
             self.__displayCheckedTicker = self.__displayCheckedTicker + 1
             print(f"displayCheckedTicker={self.__displayCheckedTicker}")
@@ -711,27 +717,35 @@ class Warnleuchte:
             ticker = 10
             if self.__displayCheckedTicker >= 0 and self.__displayCheckedTicker<ticker*2:
                 self.__zustand = self.__ZUSTAND_NOT_INIT
-                self.paint(self,display)
+                self.__paint(self, display)
                 return
             if self.__displayCheckedTicker>=ticker*2 and self.__displayCheckedTicker<ticker*3:
                 self.__zustand = self.__ZUSTAND_ERROR
-                self.paint(self,display)
+                self.__paint(self, display)
                 return
             if self.__displayCheckedTicker>=ticker*3 and self.__displayCheckedTicker<ticker*4:
                 self.__zustand = self.__ZUSTAND_INIT
-                self.paint(self,display)
+                self.__paint(self, display)
                 return
             if self.__displayCheckedTicker>=ticker*4 and self.__displayCheckedTicker<ticker*5:
                 self.__zustand = self.__ZUSTAND_AUS
-                self.paint(self,display)
+                self.__paint(self, display)
                 return
             if self.__displayCheckedTicker>=ticker*5 and self.__displayCheckedTicker<ticker*6:
                 self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                self.paint(self,display)
+                self.__paint(self, display)
                 return
             if self.__displayCheckedTicker>=ticker*6 and self.__displayCheckedTicker<ticker*7:
                 self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                self.paint(self,display)
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8:
+                self.__zustand = self.__ZUSTAND_UNFALL
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*8 and self.__displayCheckedTicker<ticker*9:
+                self.__zustand = self.__ZUSTAND_NOT_INIT
+                self.__paint(self, display)
                 return
             self.__displayChecked = True
             return
@@ -759,28 +773,63 @@ class Warnleuchte:
     def render(self, display):
         if display is not None:
             if self.__displayChecked == True:
-                self.paint(self,display)
-            else: self.displayCheck(self, display, 1000)  #pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+                self.__aktualisiereZustand(self) # aktuellen Zusand von AEBS holen
+                self.__paint(self, display)
+            else: self.__displayCheck(self, display)  #pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
         else: print("no rendering, display is  None")
 
-    def paint(self,display):
+
+    def __findColorByZusand(self, zustand):
+        WHITE = (255, 255, 255)
+        BLUE = (0, 0, 255)
+        GREEN = (0, 255, 0)
+        RED = (255, 0, 0)
+        ORANGE = (255,165,0)
+        BLACK = TEXTCOLOR = (0, 0, 0)
+        if zustand == self.__ZUSTAND_NOT_INIT:
+            return WHITE
+        elif zustand == self.__ZUSTAND_ERROR:
+            return ORANGE
+        elif zustand == self.__ZUSTAND_INIT:
+            return GREEN
+        elif zustand == self.__ZUSTAND_AUS:
+            return BLACK
+        elif zustand == self.__ZUSTAND_WARNUNG_LOW:
+            return RED
+        elif zustand == self.__ZUSTAND_WARNUNG_HIGH:
+            return RED
+        elif zustand == self.__ZUSTAND_UNFALL:
+            return RED
+        else:
+            return ORANGE # Im Zweifel Error
+
+    def __paint(self, display):
+        (display_width, display_height) = display.get_size()
+        warnleuchte_radius = 20
+        (offset_x, offset_y) = (display_width-20, display_height-20) #400, 100
         if self.__zustand == self.__ZUSTAND_NOT_INIT:
-            pygame.draw.rect(display, "white", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
             return
         if self.__zustand == self.__ZUSTAND_ERROR:
-            pygame.draw.rect(display, "red", [460, 120, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
             return
         if self.__zustand == self.__ZUSTAND_INIT:
-            pygame.draw.rect(display, "blue", [470, 130, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
             return
         if self.__zustand == self.__ZUSTAND_AUS:
-            pygame.draw.rect(display, "green", [480, 140, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
             return
         if self.__zustand == self.__ZUSTAND_WARNUNG_LOW:
-            pygame.draw.rect(display, "black", [490, 150, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
             return
         if self.__zustand == self.__ZUSTAND_WARNUNG_HIGH:
-            pygame.draw.rect(display, "yellow", [500, 160, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_UNFALL:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 4), warnleuchte_radius)
             return
 
 
