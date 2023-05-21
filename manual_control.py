@@ -322,6 +322,8 @@ class World(object):
         # self.gnss_sensor = GnssSensor(self.player)
         # self.imu_sensor = IMUSensor(self.player)
         # self.distance_sensor = VehicleRadarSensor(self.player)
+        self.obstacle_sensor = ObstacleSensor(self.player, self)
+        time.sleep(.5)
         self.aebs = AEBS(self.player, self.hud, self)
         time.sleep(.2)
         self.distance_sensor = DistanceSensor(self.player, self.player_2, self.aebs)
@@ -1650,6 +1652,68 @@ class CameraManager(object):
             image.save_to_disk('_out/%08d' % image.frame)
 
 
+# ==============================================================================
+# -- ObstacleSensor() ----------------------------------------------------------
+# https://carla.readthedocs.io/en/latest/ref_sensors/#obstacle-detector
+# -- Versuch: Anscheinend gibt es einen Sensor, welcher Hindernisse erkennen kann.
+# ==============================================================================
+class ObstacleSensor:
+
+    __obstacle_sensor = None
+    __camera = None
+    __world = None
+    __player = None
+    __image_w = 0
+    __image_h = 0
+    __sensor_data = { 'rgb_image': np.zeros((__image_h, __image_w, 4)),
+                      'obstacle': []
+                     }
+
+    def __init__(self, _player, _world):
+        self.__world = _world
+        self.__player = _player
+        self.__attach(self.__world, self.__player)
+
+    def __attach(self, _world, _vehicle):
+        bp_lib = _world.world.get_blueprint_library()
+
+        # Add camera sensor
+        camera_bp = bp_lib.find('sensor.camera.rgb')
+        _fov = camera_bp.get_attribute("fov").as_float()
+        self.__image_w = camera_bp.get_attribute("image_size_x").as_int()
+        self.__image_h = camera_bp.get_attribute("image_size_y").as_int()
+        camera_init_trans = carla.Transform(carla.Location(z=2))
+        self.__camera = _world.world.spawn_actor(camera_bp, camera_init_trans, attach_to=_vehicle)
+
+        # Sensor wird dem Fahrzeug angehängt
+        obstacle_bp = bp_lib.find('sensor.other.obstacle')
+        obstacle_bp.set_attribute('hit_radius', '0.5')
+        obstacle_bp.set_attribute('distance', '50')
+        self.__obstacle_sensor = _world.world.spawn_actor(obstacle_bp, carla.Transform(), attach_to=_vehicle)
+
+        # Calculate the camera projection matrix to project from 3D -> 2D
+        K = self.__build_projection_matrix(self.__image_w, self.__image_h, _fov)
+        # Starte den Sensor, damit daten empfangen werden können
+        self.__obstacle_sensor.listen(lambda event: self.__obstacle_callback(event, self.__sensor_data, self.__camera, K))
+
+    # Auxilliary geometry functions for transforming to screen coordinates
+    def __build_projection_matrix(self, w, h, fov):
+        focal = w / (2.0 * np.tan(fov * np.pi / 360.0))
+        K = np.identity(3)
+        K[0, 0] = K[1, 1] = focal
+        K[0, 2] = w / 2.0
+        K[1, 2] = h / 2.0
+        return K
+
+    def __obstacle_callback(event, data_dict, camera, k_mat): # call back des Obstacle Sensors
+        print("def obstacle_callback(...)")
+        if 'static' not in event.other_actor.type_id:
+            data_dict['obstacle'].append({'transform': event.other_actor.type_id, 'frame': event.frame})
+
+        #world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
+        #image_point = get_image_point(event.other_actor.get_transform().location, k_mat, world_2_camera)
+        #if 0 < image_point[0] < image_w and 0 < image_point[1] < image_h:
+        #    cv2.circle(data_dict['rgb_image'], tuple(image_point), 10, (0, 0, 255), 3)
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
