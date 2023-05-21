@@ -713,56 +713,44 @@ class Warnleuchte:
                 if self.__world.aebs.active == True:
                     self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
                     #self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
-                    currenAebsSpeed = self.__world.aebs.speed
                     #self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
-                    currenAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
-                    if currenAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
+
+                    # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
+
+                    currentAebsSpeed = self.__world.aebs.speed
+                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
+                    activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
+
+
+                    if currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
                         self.__zustand = self.__ZUSTAND_INIT
-                    elif currenAebsSpeed < 15: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
+                    elif currentAebsSpeed < activeSpeed: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
                         self.__zustand = self.__ZUSTAND_INIT
-                    elif currenAebsSpeed < 20:
-                        if currenAebsDistance <= 0:
-                            self.__zustand = self.__ZUSTAND_UNFALL
-                        elif currenAebsDistance < 5:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currenAebsDistance < 10:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currenAebsDistance >= 10:
-                            self.__zustand = self.__ZUSTAND_INIT
+                    elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
+
+                        bremsweg = (currentAebsSpeed / 10) ** 2
+                        reaktionsweg = (currentAebsSpeed / 10) * 3
+                        anhalteWeg = bremsweg + reaktionsweg
+                        anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
+                        anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
+                        if currentAebsDistance <= 0:
+                                self.__zustand = self.__ZUSTAND_UNFALL
+                        elif currentAebsDistance <= anhalteWegWarnungHigh:
+                                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                        elif currentAebsDistance <= anhalteWegWarnungLow:
+                                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                        elif currentAebsDistance >= anhalteWegWarnungLow:
+                                self.__zustand = self.__ZUSTAND_INIT
                         else:
-                            self.__zustand = self.__ZUSTAND_ERROR
-                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-                    elif currenAebsSpeed < 50:
-                        if currenAebsDistance <= 0:
-                            self.__zustand = self.__ZUSTAND_UNFALL
-                        elif currenAebsDistance < 15:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currenAebsDistance < 25:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currenAebsDistance >= 25:
-                            self.__zustand = self.__ZUSTAND_INIT
-                        else:
-                            self.__zustand = self.__ZUSTAND_ERROR
-                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-                    elif currenAebsSpeed < 100:
-                        if currenAebsDistance <= 0:
-                            self.__zustand = self.__ZUSTAND_UNFALL
-                        elif currenAebsDistance < 50:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currenAebsDistance < 100:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currenAebsDistance >= 100:
-                            self.__zustand = self.__ZUSTAND_INIT
-                        else:
-                            self.__zustand = self.__ZUSTAND_ERROR
-                            print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                                self.__zustand = self.__ZUSTAND_ERROR
+                                print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                        print(f"Abstand={currentAebsDistance}, Warnleuchte={self.__zustand}, Bremsweg={bremsweg}, Reaktionsweg={reaktionsweg} Anhaltweg={anhalteWeg}, AnhalteWegWarnungLow={anhalteWegWarnungLow}, anhalteWegWarnungHigh={anhalteWegWarnungHigh}")
                     else:
                         self.__zustand = self.__ZUSTAND_ERROR
                         print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
 
-                else: # AEBS ist ausgeschlatet, weil z.B. das Fahrzeug zu langsam ist
-                    self.__zustand = self.__ZUSTAND_AUS
-                    print(f"Hinweis: AEBS aus, Warnleuchte im Status={self.__zustand}")
+                else: #AEBS ist nicht aktiv
+                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam
 
         else:
             self.__zustand = self.__ZUSTAND_ERROR
