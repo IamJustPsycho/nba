@@ -712,29 +712,40 @@ class Warnleuchte:
                 #self.__world.aebs.get_current_speed(self.__world)
                 if self.__world.aebs.active == True:
                     self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
-                    #self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
-                    #self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
 
                     # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
+
+                    self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
+                    self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
 
                     currentAebsSpeed = self.__world.aebs.speed
                     currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
                     activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
+                    rueckwaertsgang = self.__world.player.get_control().reverse
 
-
-                    if currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
+                    if rueckwaertsgang:
+                        self.__zustand = self.__ZUSTAND_AUS
+                    elif currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
                         self.__zustand = self.__ZUSTAND_INIT
                     elif currentAebsSpeed < activeSpeed: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
                         self.__zustand = self.__ZUSTAND_INIT
                     elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
 
+                        #Faust-Formel aus der Fahrschule
                         bremsweg = (currentAebsSpeed / 10) ** 2
                         reaktionsweg = (currentAebsSpeed / 10) * 3
-                        anhalteWeg = bremsweg + reaktionsweg
+
+                        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
+                        bremsweg = bremsweg / 2
+                        reaktionsweg = reaktionsweg / 2
+
+                        # Zu Testzwecken um 50% verringern. (!)
+                        anhalteWeg = (bremsweg + reaktionsweg)
+                        anhalteWeg = anhalteWeg
                         anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
                         anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
-                        if currentAebsDistance <= 0:
-                                self.__zustand = self.__ZUSTAND_UNFALL
+                        if currentAebsDistance <= 0: #keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
+                                self.__zustand = self.__ZUSTAND_INIT
                         elif currentAebsDistance <= anhalteWegWarnungHigh:
                                 self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
                         elif currentAebsDistance <= anhalteWegWarnungLow:
@@ -792,10 +803,10 @@ class Warnleuchte:
                 self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
                 self.__paint(self, display)
                 return
-            if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8:
-                self.__zustand = self.__ZUSTAND_UNFALL
-                self.__paint(self, display)
-                return
+            #if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8: #Unfall nicht anzeigen beim Check.
+            #    self.__zustand = self.__ZUSTAND_UNFALL
+            #    self.__paint(self, display)
+            #    return
             if self.__displayCheckedTicker>=ticker*8 and self.__displayCheckedTicker<ticker*9:
                 self.__zustand = self.__ZUSTAND_NOT_INIT
                 self.__paint(self, display)
@@ -803,18 +814,6 @@ class Warnleuchte:
             self.__displayChecked = True
             return
 
-
-            # Check: AEBS ist ausgeschaltet
-            # Gelb, langsam blinkend
-
-            # Check: AEBS ist eingeschaltet
-            # Dunkel-Grün, kaum bemerkbar
-
-            # Check: Warnung vor Kollistion (z.B. unter 10m bei 20km/h, 50m bei 50km/h, 150m bei 200km/h)
-            # Gelb
-
-            # Check: Warnung vor Kollistion (z.B. unter 20m bei 20km/h, 25m bei 50km/h, 100m bei 200km/h)
-            # Rot
         else: return
 
 
