@@ -153,7 +153,6 @@ SEMANTIC_IMG_HEIGHT = 75
 SEMANTIC_IMG_WIDTH = 200
 
 g_distance = 0
-g_least_distance = 0
 g_interrupt = False
 g_player_action = False
 
@@ -435,8 +434,7 @@ class KeyboardControl(object):
                     return True
                 elif event.key == K_u:
                     world.aebs.toggle_aebs()
-                    if world.hud.warnleuchte is not None:
-                        world.hud.warnleuchte.reset(world.hud.warnleuchte)
+
                 elif event.key == K_BACKSPACE:
                     if self._autopilot_enabled:
                         world.player.set_autopilot(False)
@@ -668,245 +666,11 @@ class KeyboardControl(object):
 
 
 # ==============================================================================
-# -- Warnleuchte ---------------------------------------------------------------
-# Diese Klasse simuliert eine Warnleuchte auf der imaginären Instrumententafel
-# Eine Warnleuchte hat folgende Haupt-Zustände:
-#   initialisiert - entspricht einem gründen Punkt am Bildschirm (unten rechts)
-#   warnung(niedrig/hoch) - entspricht einem oder zwei roten Punkten auf dem Bildschirm
-#   ausgeschaltet - entspricht einem schwarzen Punkt (=Warnleuchte leuchtet nicht)
-#   fehlerhaft - entspricht einem orangenden Punkt (=technischer Fehler)
-#
-# Wichtige Instanzvariablen sind Links auf __world und __world.aebs
-# Ddie Klasse World(__world) ist damit bekannt, deren Source-Code sich im der gleichen Source-Code datei befindet.
-#
-# Öffentliche Methoden
-# void render() zeichnet die Warnleuchte am Display(rechts, unten) und erwartet surface of pygame als Parameter
-# void setWorld() muss unmittelbar nach dem Initialisieren der Klasse aufgerufen werden. (wäre z.B. auch in Konstuktor angebracht)
-# void reset() wird immer dann aufgerufen, wenn AEBS ein/ausgeschaltet wird.
-# https://www.pygame.org/docs/ref/draw.html
-# ==============================================================================
-class Warnleuchte:
-
-    __world = None #Link zu der Welt
-    #__display = None #Link auf Screen, wo die Leuchte angezeigt werden soll
-    #__hud = None #Link auf Anzeige-Instrumente (falls überhaupt nötig)
-    #__aebs = None #Link auf das NBA, um zustände abzufrage und um benachrichtigt zu werden, fall ein Zustand sich ändert.
-
-    #Alle möglichen Zustände der Warnleute am InstrumentenBrett
-    __ZUSTAND_NOT_INIT = "zustand_not_init"
-    __ZUSTAND_ERROR = "zustand_error"
-    __ZUSTAND_INIT = "zustand_init"
-    __ZUSTAND_AUS = "zustand_aus"
-    __ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
-    __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
-    __ZUSTAND_UNFALL = "zustand_unfall"
-    __ZUSTAENDE_LIST = (__ZUSTAND_NOT_INIT, __ZUSTAND_ERROR, __ZUSTAND_INIT, __ZUSTAND_AUS, __ZUSTAND_WARNUNG_LOW, __ZUSTAND_WARNUNG_HIGH, __ZUSTAND_UNFALL) #tuple, zur Laufzeit unveränderbare Liste
-    __zustand = __ZUSTAND_NOT_INIT #Akueller Stand im Augenblick __zustaende[0]
-
-    __displayChecked = False
-    __displayCheckedStatus = __ZUSTAND_NOT_INIT
-    __displayCheckedTicker = 1
-
-    def setWorld(self, world):
-        self.__world = world
-
-    def __init__(self):
-        self.reset(self)
-
-    def __aktualisiereZustand(self): # no return, only check and setting of the actual status value
-        if self.__world is None:
-            self.__zustand = self.__ZUSTAND_ERROR
-            print(f"Die Warnleuchte kenn die Welt nicht. Warnleuchte-Zustand={self.__zustand}")
-        elif self.__world is not None:
-            if self.__world.aebs is None:
-                self.__zustand = self.__ZUSTAND_ERROR
-                print(f"Die Warnleuchte kenn die Welt, aber das Objekt AEBS ist nicht initialisiert. Warnleuchte-Zustand={self.__zustand}")
-            else: # Welt ist bekannt, AEBS ist bekannt
-                #self.__world.aebs.get_current_speed(self.__world)
-                if self.__world.aebs.active == True:
-                    self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
-
-                    # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                    self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
-                    self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
-
-                    currentAebsSpeed = self.__world.aebs.speed
-                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
-                    currentAebsDistance = g_least_distance # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
-
-                    activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
-                    rueckwaertsgang = self.__world.player.get_control().reverse
-
-                    if rueckwaertsgang:
-                        self.__zustand = self.__ZUSTAND_AUS
-                    elif currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed < activeSpeed: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                        #Faust-Formel aus der Fahrschule
-                        bremsweg = (currentAebsSpeed / 10) * (currentAebsSpeed / 10) #Fahrschul-Formel
-                        reaktionsweg = (currentAebsSpeed / 10) * 3 #Fahrschul-Formel
-
-                        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
-                        bremsweg = bremsweg / 2
-                        reaktionsweg = reaktionsweg / 2
-
-                        # Zu Testzwecken um 50% verringern. (!)
-                        anhalteWeg = bremsweg + reaktionsweg
-                        anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
-                        anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
-                        if currentAebsDistance <= 0.0: #keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
-                                self.__zustand = self.__ZUSTAND_INIT
-                        elif currentAebsDistance <= anhalteWegWarnungHigh:
-                                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currentAebsDistance <= anhalteWegWarnungLow:
-                                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currentAebsDistance >= anhalteWegWarnungLow:
-                                self.__zustand = self.__ZUSTAND_INIT
-                        else:
-                                self.__zustand = self.__ZUSTAND_ERROR
-                                print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-                        print(f"Abstand={currentAebsDistance:.2f}, Warnleuchte={self.__zustand}, Bremsweg={bremsweg:.2f}, Reaktionsweg={reaktionsweg:.2f} Anhaltweg={anhalteWeg:.2f}, AnhalteWegWarnungLow={anhalteWegWarnungLow:.2f}, anhalteWegWarnungHigh={anhalteWegWarnungHigh:.2f}, Nearly vehicles distance={g_least_distance:.2f}")
-                    else:
-                        self.__zustand = self.__ZUSTAND_ERROR
-                        print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-
-                else: #AEBS ist nicht aktiv
-                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam
-
-        else:
-            self.__zustand = self.__ZUSTAND_ERROR
-            print(f"Die Warnleuchte kann den aktuellen eigen Zustand nicht ermitteln. Der Fehler is unbekannt. Zustand={self.__zustand}")
-
-    def reset(self):
-        self.__displayChecked = False
-        self.__displayCheckedStatus = self.__ZUSTAND_NOT_INIT
-        self.__displayCheckedTicker = 1
-
-    def __displayCheck(self, display): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
-        if self.__displayChecked == False:
-            self.__displayCheckedTicker = self.__displayCheckedTicker + 1
-            #print(f"displayCheckedTicker={self.__displayCheckedTicker}")
-
-            # alle Leuchten leuchten für einen Augenblick auf
-            ticker = 10
-            if self.__displayCheckedTicker >= 0 and self.__displayCheckedTicker<ticker*2:
-                self.__zustand = self.__ZUSTAND_NOT_INIT
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*2 and self.__displayCheckedTicker<ticker*3:
-                self.__zustand = self.__ZUSTAND_ERROR
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*3 and self.__displayCheckedTicker<ticker*4:
-                self.__zustand = self.__ZUSTAND_INIT
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*4 and self.__displayCheckedTicker<ticker*5:
-                self.__zustand = self.__ZUSTAND_AUS
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*5 and self.__displayCheckedTicker<ticker*6:
-                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*6 and self.__displayCheckedTicker<ticker*7:
-                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                self.__paint(self, display)
-                return
-            #if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8: #Unfall nicht anzeigen beim Check.
-            #    self.__zustand = self.__ZUSTAND_UNFALL
-            #    self.__paint(self, display)
-            #    return
-            if self.__displayCheckedTicker>=ticker*8 and self.__displayCheckedTicker<ticker*9:
-                self.__zustand = self.__ZUSTAND_NOT_INIT
-                self.__paint(self, display)
-                return
-            self.__displayChecked = True
-            return
-
-        else: return
-
-
-#    def render2(self):
-#        if self.__aebs != None and  self.__hud != None and self.__surface != None:
-#           self.repaint(self, self.__aebs, self.__hud, self.__surface)
-#        else: print("Warning: Warnleuchte.repaint() nicht möglich")
-
-    def render(self, display):
-        if display is not None:
-            if self.__displayChecked == True:
-                self.__aktualisiereZustand(self) # aktuellen Zusand von AEBS holen
-                self.__paint(self, display)
-            else: self.__displayCheck(self, display)  #pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
-        else: print("no rendering, display is  None")
-
-
-    def __findColorByZusand(self, zustand):
-        WHITE = (255, 255, 255)
-        BLUE = (0, 0, 255)
-        GREEN = (31, 94, 10) #GREEN = (0, 255, 0)
-        RED = (255, 0, 0)
-        ORANGE = (255,165,0)
-        BLACK = TEXTCOLOR = (0, 0, 0)
-        if zustand == self.__ZUSTAND_NOT_INIT:
-            return WHITE
-        elif zustand == self.__ZUSTAND_ERROR:
-            return ORANGE
-        elif zustand == self.__ZUSTAND_INIT:
-            return GREEN
-        elif zustand == self.__ZUSTAND_AUS:
-            return BLACK
-        elif zustand == self.__ZUSTAND_WARNUNG_LOW:
-            return RED
-        elif zustand == self.__ZUSTAND_WARNUNG_HIGH:
-            return RED
-        elif zustand == self.__ZUSTAND_UNFALL:
-            return RED
-        else:
-            return ORANGE # Im Zweifel Error
-
-    def __paint(self, display):
-        (display_width, display_height) = display.get_size()
-        warnleuchte_radius = 20
-        (offset_x, offset_y) = (display_width-20, display_height-20) #400, 100
-        if self.__zustand == self.__ZUSTAND_NOT_INIT:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_ERROR:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_INIT:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_AUS:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_WARNUNG_LOW:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_WARNUNG_HIGH:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_UNFALL:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 4), warnleuchte_radius)
-            return
-
-
-# ==============================================================================
 # -- HUD -----------------------------------------------------------------------
 # ==============================================================================
 
 
 class HUD(object):
-    warnleuchte = None  # Anzeige der AEBS-Warnleuchte im Display(unten rechts)
-
     def __init__(self, width, height):
         self.dim = (width, height)
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
@@ -932,11 +696,6 @@ class HUD(object):
         self.simulation_time = timestamp.elapsed_seconds
 
     def tick(self, world, clock):
-
-        if self.warnleuchte is None: # 1 zu 1 Relation (HUB <<<>>> Warnleuchte)
-            self.warnleuchte = Warnleuchte #Erzeugen einer Instanz der Klasse für die Anzeige am Bildschirm
-            self.warnleuchte.setWorld(self.warnleuchte, world) #self.warnleuchte.__world = world #Zugriff auf world ermöglichen
-
         self._notifications.tick(world, clock)
         if not self._show_info:
             return
@@ -997,15 +756,11 @@ class HUD(object):
             distance = lambda l: math.sqrt(
                 (l.x - t.location.x) ** 2 + (l.y - t.location.y) ** 2 + (l.z - t.location.z) ** 2)
             vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
-            global g_least_distance
-            g_least_distance = 0
             for d, vehicle in sorted(vehicles, key=lambda vehicles: vehicles[0]):
                 if d > 200.0:
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-                if d < g_least_distance or g_least_distance==0:
-                    g_least_distance = d
 
     def toggle_info(self):
         self._show_info = not self._show_info
@@ -1053,10 +808,6 @@ class HUD(object):
                 v_offset += 18
         self._notifications.render(display)
         self.help.render(display)
-
-        if self.warnleuchte is not None:
-            self.warnleuchte.render(self.warnleuchte,display) #Warnleuchte zeichnen
-        else: print("Fehler: HUD.warnleuchte is None")
 
 
 # ==============================================================================
@@ -1127,8 +878,7 @@ class HelpText(object):
 class AEBS(object):
     def __init__(self, parent_actor, hud, world):
         self.active = True
-        #self.warning_image = pygame.image.load("./images/warning.png")
-        self.warning_image = pygame.image.load("./images/warning-sign.jpg")
+        self.warning_image = pygame.image.load("./images/warning.png")
         self.hud = hud
         self.player = parent_actor
         self.speed = 0
@@ -1753,8 +1503,8 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='720x480', #default='1280x720',
-        help='window resolution (default: 720x480)') #help='window resolution (default: 1280x720)')
+        default='1280x720',
+        help='window resolution (default: 1280x720)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
