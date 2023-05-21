@@ -1714,13 +1714,20 @@ class ObstacleSensor:
         if 'static' not in event.other_actor.type_id: #"static" wird vermutlich alle Objekte wie ein Gebäude ausschließen
             #data_dict['obstacle'].append({'transform': event.other_actor.type_id, 'frame': event.frame})
             self.__current_obstacle = {'transform': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance}
-            print(f"Changed __current_bstacle={self.__current_obstacle}, other actor={event.other_actor}")
-            if (event.other_actor is carla.libcarla.Vehicle):
-                other_vehicle = event.other_actor
-                print(f"Dieses Fahrzeug={other_vehicle} als Hindernis erkannt!")
-            else:
-                other_thing = event.other_actor
-                print(f"Hindernis erkannt={other_thing}!")
+            print(f"Obstacle_event_distance in Meter={event.distance}") # distance https://carla.readthedocs.io/en/0.9.12/python_api/#instance-variables_38
+            #print(f"Changed __current_bstacle={self.__current_obstacle}, other actor={event.other_actor}")
+            #print(f"event.other_actor.attributes={event.other_actor.attributes}")
+            #print(f"event.other_actor.type_id={event.other_actor.type_id}")
+            #print(f"event.other_actor.is_alive={event.other_actor.is_alive}")
+            #print(f"event.other_actor.get_transform={event.other_actor.get_transform}")
+            #other_actor_transformation = event.other_actor.get_transform
+            #print(f"event.other_actor.get_transform={other_actor_transformation}")
+            #if issubclass(event.other_actor, carla.libcarla.Vehicle): # if (event.other_actor is carla.libcarla.Vehicle):
+            #    other_vehicle = event.other_actor
+            #    print(f"Dieses Fahrzeug={other_vehicle} als Hindernis erkannt!")
+            #else:
+            #    other_thing = event.other_actor
+            #    print(f"Hindernis erkannt={other_thing}!")
 
 
         #print(data_dict) #like {'rgb_image': array([], shape=(0, 0, 4), dtype=float64), 'obstacle': [{'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2728}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2729}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2737}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2738}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2739}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2740}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2741}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2742}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2743}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2744}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2745}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2746}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2747}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2748}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2749}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2750}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2751}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2752}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2753}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2886}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2887}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2888}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2889}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2890}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2891}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2892}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2893}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2894}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2895}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2896}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2897}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2900}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2901}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2902}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2903}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2906}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2907}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2908}]}
