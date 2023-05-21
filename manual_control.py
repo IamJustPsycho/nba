@@ -1718,11 +1718,34 @@ class ObstacleSensor:
 
         #print(data_dict) #like {'rgb_image': array([], shape=(0, 0, 4), dtype=float64), 'obstacle': [{'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2728}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2729}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2737}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2738}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2739}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2740}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2741}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2742}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2743}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2744}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2745}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2746}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2747}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2748}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2749}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2750}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2751}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2752}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2753}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2886}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2887}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2888}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2889}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2890}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2891}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2892}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2893}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2894}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2895}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2896}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2897}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2900}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2901}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2902}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2903}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2906}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2907}, {'transform': 'vehicle.mercedes.coupe_2020', 'frame': 2908}]}
 
-        #world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
-        #image_point = get_image_point(event.other_actor.get_transform().location, k_mat, world_2_camera)
-        #if 0 < image_point[0] < image_w and 0 < image_point[1] < image_h:
-        #    cv2.circle(data_dict['rgb_image'], tuple(image_point), 10, (0, 0, 255), 3)
+        world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
+        image_point = self.__get_image_point(event.other_actor.get_transform().location, k_mat, world_2_camera)
+        if 0 < image_point[0] < self.__image_w and 0 < image_point[1] < self.__image_h:
+            print(f"Changed __current_bstacle=Error")
+            cv2.circle(data_dict['rgb_image'], tuple(image_point), 10, (0, 0, 255), 3)
+        else:
+            print(f"Changed __current_bstacle={image_point[0], image_point[1], self.__image_w, self.__image_h}")
 
+    def __get_image_point(self, loc, K, w2c):
+        # Calculate 2D projection of 3D coordinate
+
+        # Format the input coordinate (loc is a carla.Position object)
+        point = np.array([loc.x, loc.y, loc.z, 1])
+        # transform to camera coordinates
+        point_camera = np.dot(w2c, point)
+
+        # New we must change from UE4's coordinate system to an "standard"
+        # (x, y ,z) -> (y, -z, x)
+        # and we remove the fourth componebonent also
+        point_camera = [point_camera[1], -point_camera[2], point_camera[0]]
+
+        # now project 3D->2D using the camera matrix
+        point_img = np.dot(K, point_camera)
+        # normalize
+        point_img[0] /= point_img[2]
+        point_img[1] /= point_img[2]
+
+        return tuple(map(int, point_img[0:2]))
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
