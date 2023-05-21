@@ -1,0 +1,32 @@
+Die optischen Warnsignale müssen auch bei Tageslicht sichtbar sein
+und für den Fahrer vom Fahrersitz aus leicht überprüfbar sein. (Warnleuchte OK)
+
+Die AEBS-Funktion muss bei Beginn jedes neuen Zündzyklus
+automatisch wiederhergestellt werden.
+
+Ein ständiges optisches Warnsignal muss den Fahrer darüber
+informieren, dass die AEBS Funktion ausgeschaltet ist. (Warnleuchte OK)
+
+---- Definition der Intesturmentafel und spezifischer AEBS-Tabel mit Wahrleuchten und Infoleuchten
+- Erst-Grob-Vorstellung wie es realisiert werden könnte
+- Step 1: Anzeige einer Instrumenten-Tafel
+- Step 2: Erstellen eines AEBS-Bereichs mit folgenden Leuchten und Zuständen
+          Zustand 1: AEBS aus/ein
+              aus = Leuchte gelb langsam blinkend
+              ein = Leuchte aus (oder dunkel grün)
+          Zustand 2: Zusammenstoß erkannt
+              aus = keine Gefahr (evtl. dunkel grün, unauffällig)
+              rot(oder Symbol) = Aktion des Fahrer erwartet
+              rot blinkend(oder Symbol) = Eingreifen des Systems mit Fahrer-Info
+
+
+
+System muss ein vorausfahrendes Fahrzeug der Klasse M(Personenbeförderung), N(Güterbeförderung), O(Anhänger)
+auf demselben Fahrstreifen erkennen (beweglich oder unbeweglich) << (Annahme: nur vorne fahrendenden Fahrzeuge sind gemein)
+
+"Der Zeitpunkt der Warnsignale muss so gewählt werden:
+- dass der Fahrer auf die Gefahr eines Zusammenstoßes reagieren und die Kontrolle über die Situation übernehmen kann
+- ohne Belästigung des Fahrers durch zu früh oder zu häufige Warnungen" (Genaue Kriterien sollten definiert werden)
+    -- Einstellbare Parameter sind denkbar: 5 Meter vor dem Aufprall, 5 Sekunden vor dem Aufprall
+       z.B. Warnung 5 Sekunden vor dem Aufprall
+            Automatisches Eingreifen: 3 Sekunden vor dem Aufprall
