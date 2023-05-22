@@ -785,7 +785,7 @@ class Warnleuchte:
                         print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
 
                 else: #AEBS ist nicht aktiv
-                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam
+                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
 
         else:
             self.__zustand = self.__ZUSTAND_ERROR
