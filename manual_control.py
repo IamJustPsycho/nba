@@ -1746,7 +1746,11 @@ class ObstacleSensor:
     def __obstacle_callback(self, event, data_dict, camera, k_mat): # call back des Obstacle Sensors
         self.__obstacle_sensor_callback_counter = self.__obstacle_sensor_callback_counter + 1
         #print(f"def __obstacle_callback(....)={self.__obstacle_sensor_callback_counter}")
-        if 'static' not in event.other_actor.type_id: #"static" wird vermutlich alle Objekte wie ein Gebäude ausschließen
+
+        temp = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
+        print(f"event.other_actor.type_id={event.other_actor.type_id}, Obstacle={temp}")
+        #if 'static' not in event.other_actor.type_id: #"static" wird vermutlich alle Objekte wie ein Gebäude ausschließen
+        if 'vehicle' in event.other_actor.type_id:  # "static" wird vermutlich alle unbeweglichen Objekte wie ein Gebäude oder ein gepraktes Auto ausschließen
             #data_dict['obstacle'].append({'transform': event.other_actor.type_id, 'frame': event.frame})
             self.__current_obstacle = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
             #print(f"Obstacle_event_distance in Meter={event.distance}") # distance https://carla.readthedocs.io/en/0.9.12/python_api/#instance-variables_38
