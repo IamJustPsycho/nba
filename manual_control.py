@@ -1668,7 +1668,7 @@ class CameraManager(object):
 # ==============================================================================
 # -- ObstacleSensor() ----------------------------------------------------------
 # https://carla.readthedocs.io/en/latest/ref_sensors/#obstacle-detector
-# -- Versuch: Anscheinend gibt es einen Sensor, welcher Hindernisse erkennen kann.
+# -- Versuch: Anscheinend gibt es einen Sensor, welcher Hindernisse erkennen kann..
 # ==============================================================================
 class ObstacleSensor:
 
