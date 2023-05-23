@@ -322,6 +322,8 @@ class World(object):
         # self.gnss_sensor = GnssSensor(self.player)
         # self.imu_sensor = IMUSensor(self.player)
         # self.distance_sensor = VehicleRadarSensor(self.player)
+        self.obstacle_sensor = ObstacleSensor(self.player, self)
+        time.sleep(.5)
         self.aebs = AEBS(self.player, self.hud, self)
         time.sleep(.2)
         self.distance_sensor = DistanceSensor(self.player, self.player_2, self.aebs)
@@ -732,8 +734,16 @@ class Warnleuchte:
                     self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
 
                     currentAebsSpeed = self.__world.aebs.speed
-                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen.
-                    currentAebsDistance = g_least_distance # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
+
+                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen. Wird am 21.05.2023 nicht von Alexander verwendet, weil noch nicht genau.
+
+                    currentObstacleDistance = self.__world.obstacle_sensor.getCurrentObstacleDictance(1000) #maximal eine Sekunde alt, sonst 0.
+                    if currentObstacleDistance>0:
+                        currentAebsDistance = currentObstacleDistance # Überschreiben, weil am 21.05.2023 POC-Obstacle gemacht wird. Es scheint besser zu funktionieren als im AEBS
+                        print("Abstand aus dem ObstacleSensor")
+                    else:
+                        currentAebsDistance = g_least_distance  # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
+                        #print("Warnung: Abstand direkt aus der Karte")
 
                     activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
                     rueckwaertsgang = self.__world.player.get_control().reverse
@@ -775,7 +785,7 @@ class Warnleuchte:
                         print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
 
                 else: #AEBS ist nicht aktiv
-                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam
+                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
 
         else:
             self.__zustand = self.__ZUSTAND_ERROR
@@ -943,6 +953,10 @@ class HUD(object):
         t = world.player.get_transform()
         v = world.player.get_velocity()
         c = world.player.get_control()
+        obstacle_distance = "Obstacle sensor distance: "
+        if world is not None:
+            if world.obstacle_sensor is not None:
+                obstacle_distance = (f"Obstacle sensor distance: {int(world.obstacle_sensor.getCurrentObstacleDictance(100))} m")
         # compass = world.imu_sensor.compass
         # heading = 'N' if compass > 270.5 or compass < 89.5 else ''
         # heading += 'S' if 90.5 < compass < 269.5 else ''
@@ -972,6 +986,7 @@ class HUD(object):
             # 'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
             'Height:  % 18.0f m' % t.location.z,
             'AEBS: %23.0f ' % world.aebs.active,
+            obstacle_distance,
             '']
         if isinstance(c, carla.VehicleControl):
             self._info_text += [
@@ -1649,6 +1664,121 @@ class CameraManager(object):
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
 
+
+# ==============================================================================
+# -- ObstacleSensor() ----------------------------------------------------------
+# https://carla.readthedocs.io/en/latest/ref_sensors/#obstacle-detector
+# -- Versuch: Anscheinend gibt es einen Sensor, welcher Hindernisse erkennen kann.
+# ==============================================================================
+class ObstacleSensor:
+
+    __obstacle_sensor = None
+    __obstacle_sensor_callback_counter = 0
+    __camera = None
+    __world = None
+    __player = None
+    __image_w = 0
+    __image_h = 0
+    __sensor_data = { 'rgb_image': np.zeros((__image_h, __image_w, 4)),
+                      'obstacle': []
+                     }
+    __current_obstacle = []
+
+    def getCurrentObstacleDictance(self, maxAlterDesHindernissesInMillis):
+        try:
+            if len(self.__current_obstacle) > 0:
+                type_id = self.__current_obstacle['type_id']
+                distance = self.__current_obstacle['distance']
+                frame = self.__current_obstacle['frame']
+                timestamp = self.__current_obstacle['timestamp']
+                actor = self.__current_obstacle['actor']
+                other_actor = self.__current_obstacle['other_actor']
+                #print(f"last obstacle,{type_id},{distance:.2f},{frame},{timestamp},actor={actor},other_actor={other_actor}")
+                #Zeit vergleichen
+                myTimeStamp = self.__current_obstacle['myTimeStamp']
+                timeStamp = time.time()
+                t_diff = timeStamp-myTimeStamp
+                if (t_diff < maxAlterDesHindernissesInMillis/200):
+                    return distance
+                else:
+                    #print(f"Hindernis veraltet, Alter in Millis={t_diff:.2f}")
+                    return 0.0
+            else: return 0.0
+        except Exception as e:
+            print(type(e))  # the exception type
+            print(e.args)  # arguments stored in .args
+            print(e)  # __str__ allows args to be printed directly,
+            return 0.0 #keine Hindernisse
+
+
+    def __init__(self, _player, _world):
+        self.__world = _world
+        self.__player = _player
+        self.__attach(self.__world, self.__player)
+
+    def __attach(self, _world, _vehicle):
+        bp_lib = _world.world.get_blueprint_library()
+
+        # Add camera sensor
+        camera_bp = bp_lib.find('sensor.camera.rgb')
+        _fov = camera_bp.get_attribute("fov").as_float()
+        self.__image_w = camera_bp.get_attribute("image_size_x").as_int()
+        self.__image_h = camera_bp.get_attribute("image_size_y").as_int()
+        camera_init_trans = carla.Transform(carla.Location(z=2))
+        self.__camera = _world.world.spawn_actor(camera_bp, camera_init_trans, attach_to=_vehicle)
+
+        # Sensor wird dem Fahrzeug angehängt
+        obstacle_bp = bp_lib.find('sensor.other.obstacle')
+        obstacle_bp.set_attribute('hit_radius', '0.5')
+        obstacle_bp.set_attribute('distance', '50')
+        self.__obstacle_sensor = _world.world.spawn_actor(obstacle_bp, carla.Transform(), attach_to=_vehicle)
+
+        # Calculate the camera projection matrix to project from 3D -> 2D
+        K = self.__build_projection_matrix(self.__image_w, self.__image_h, _fov)
+        # Starte den Sensor, damit daten empfangen werden können
+        self.__obstacle_sensor.listen(lambda event: self.__obstacle_callback(event, self.__sensor_data, self.__camera, K))
+        print("ObstacleSensor.__attached(...)")
+
+    # Auxilliary geometry functions for transforming to screen coordinates
+    def __build_projection_matrix(self, w, h, fov):
+        focal = w / (2.0 * np.tan(fov * np.pi / 360.0))
+        K = np.identity(3)
+        K[0, 0] = K[1, 1] = focal
+        K[0, 2] = w / 2.0
+        K[1, 2] = h / 2.0
+        return K
+
+    def __obstacle_callback(self, event, data_dict, camera, k_mat): # call back des Obstacle Sensors
+        self.__obstacle_sensor_callback_counter = self.__obstacle_sensor_callback_counter + 1
+        #print(f"def __obstacle_callback(....)={self.__obstacle_sensor_callback_counter}")
+
+        temp = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
+        #print(f"event.other_actor.type_id={event.other_actor.type_id}, Obstacle={temp}")
+        #if 'static' not in event.other_actor.type_id: #"static" wird vermutlich alle Objekte wie ein Gebäude ausschließen
+        if 'vehicle' in event.other_actor.type_id:  # "static" wird vermutlich alle unbeweglichen Objekte wie ein Gebäude oder ein gepraktes Auto ausschließen
+            self.__current_obstacle = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
+            data_dict['obstacle'].append({'transform': event.other_actor.type_id, 'frame': event.frame})
+
+    def __get_image_point(self, loc, K, w2c):
+        # Calculate 2D projection of 3D coordinate
+
+        # Format the input coordinate (loc is a carla.Position object)
+        point = np.array([loc.x, loc.y, loc.z, 1])
+        # transform to camera coordinates
+        point_camera = np.dot(w2c, point)
+
+        # New we must change from UE4's coordinate system to an "standard"
+        # (x, y ,z) -> (y, -z, x)
+        # and we remove the fourth componebonent also
+        point_camera = [point_camera[1], -point_camera[2], point_camera[0]]
+
+        # now project 3D->2D using the camera matrix
+        point_img = np.dot(K, point_camera)
+        # normalize
+        point_img[0] /= point_img[2]
+        point_img[1] /= point_img[2]
+
+        return tuple(map(int, point_img[0:2]))
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
