@@ -56,6 +56,7 @@ Use ARROWS or WASD keys for control.
 
 from __future__ import print_function
 
+
 # ==============================================================================
 # -- find carla module ---------------------------------------------------------
 # ==============================================================================
@@ -74,6 +75,7 @@ try:
 except IndexError:
     pass
 
+
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
@@ -91,6 +93,7 @@ import random
 import re
 import weakref
 import cv2
+
 
 try:
     import pygame
@@ -153,11 +156,14 @@ SEMANTIC_IMG_HEIGHT = 75
 SEMANTIC_IMG_WIDTH = 200
 
 g_distance = 0
-g_least_distance = 0
 g_interrupt = False
-g_player_action = False
+g_player_action_w = False
+g_player_action_s = False
+g_player_action_a = False
+g_player_action_d = False
 
-pygame.init()
+
+#pygame.init()
 
 
 # ==============================================================================
@@ -175,7 +181,6 @@ def find_weather_presets():
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
-
 
 def get_actor_blueprints(world, filter, generation):
     bps = world.get_blueprint_library().filter(filter)
@@ -207,6 +212,8 @@ def get_actor_blueprints(world, filter, generation):
 # ==============================================================================
 
 
+
+
 class World(object):
     def __init__(self, carla_world, hud, args, client):
         self.world = carla_world
@@ -224,11 +231,11 @@ class World(object):
         self.player = None
         self.player_2 = None
         self.thread_2 = None
-        # self.collision_sensor = None
-        # self.lane_invasion_sensor = None
-        # self.gnss_sensor = None
-        # self.imu_sensor = None
-        # self.radar_sensor = None
+        #self.collision_sensor = None
+        #self.lane_invasion_sensor = None
+        #self.gnss_sensor = None
+        #self.imu_sensor = None
+        #self.radar_sensor = None
         self.distance_sensor = None
         self.aebs = None
         self.camera_manager = None
@@ -289,16 +296,15 @@ class World(object):
             spawn_point.rotation.roll = 0.0
             spawn_point.rotation.pitch = 0.0
             self.destroy()
-            transform = carla.Transform(carla.Location(x=-105.881844, y=-186.788177, z=10.020110),
-                                        carla.Rotation(yaw=0))
+            transform = carla.Transform(carla.Location(x=-105.881844, y=-186.788177, z=10.020110), carla.Rotation(yaw=0))
             self.player = self.world.try_spawn_actor(blueprint, transform)
             time.sleep(5)
-            transform_2 = carla.Transform(carla.Location(x=0.018200, y=133.947205, z=0.019969), carla.Rotation(yaw=0))
+            transform_2 = carla.Transform(carla.Location(x=-10.018200, y=133.947205, z=0.019969), carla.Rotation(yaw=0))
             self.player_2 = self.world.try_spawn_actor(blueprint, transform_2)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
             self.modify_vehicle_physics(self.player_2)
-
+        
         while self.player is None:
             if not self.map.get_spawn_points():
                 print('There are no spawn points available in your map/town.')
@@ -307,35 +313,32 @@ class World(object):
             print("hi")
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
-            transform = carla.Transform(carla.Location(x=65.018200, y=133.947205, z=0.019969), carla.Rotation(yaw=180))
+            transform = carla.Transform(carla.Location(x=65, y=133.9, z=0.019969), carla.Rotation(yaw=180.1))
             self.player = self.world.try_spawn_actor(blueprint, transform)
             spawn_point_2 = random.choice(spawn_points) if spawn_points else carla.Transform()
-            transform_2 = carla.Transform(carla.Location(x=45.018200, y=133.947205, z=0.019969),
-                                          carla.Rotation(yaw=180))
+            transform_2 = carla.Transform(carla.Location(x=-26, y=133.5, z=0.019969), carla.Rotation(yaw=180))
             self.player_2 = self.world.try_spawn_actor(blueprint, transform_2)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
             self.modify_vehicle_physics(self.player_2)
         # Set up the sensors.
-        # self.collision_sensor = CollisionSensor(self.player, self.hud)
-        # self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
-        # self.gnss_sensor = GnssSensor(self.player)
-        # self.imu_sensor = IMUSensor(self.player)
-        # self.distance_sensor = VehicleRadarSensor(self.player)
-        self.obstacle_sensor = ObstacleSensor(self.player, self)
-        time.sleep(.5)
+        #self.collision_sensor = CollisionSensor(self.player, self.hud)
+        #self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
+        #self.gnss_sensor = GnssSensor(self.player)
+        #self.imu_sensor = IMUSensor(self.player)
+        #self.distance_sensor = VehicleRadarSensor(self.player)
         self.aebs = AEBS(self.player, self.hud, self)
         time.sleep(.2)
-        self.distance_sensor = DistanceSensor(self.player, self.player_2, self.aebs)
+        #self.distance_sensor = DistanceSensor(self.player, self.player_2, self.aebs)
         time.sleep(.5)
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
-
-        # self.thread_1 = threading.Thread(target=self.create_sensor)
-        # self.thread_1.start()
+        
+        #self.thread_1 = threading.Thread(target=self.create_sensor)
+        #self.thread_1.start()
         self.thread_2 = threading.Thread(target=self.aebs.test)
         self.thread_2.start()
 
@@ -366,6 +369,7 @@ class World(object):
             self.hud.notification('Loading map layer: %s' % selected)
             self.world.load_map_layer(selected)
 
+
     def modify_vehicle_physics(self, actor):
         try:
             physics_control = actor.get_physics_control()
@@ -387,18 +391,19 @@ class World(object):
         self.camera_manager.index = None
 
     def destroy(self):
-        # self.thread_1.join()
-        # self.thread_2.join()
+        #self.thread_1.join()
+        #self.thread_2.join()
         if self.player is not None:
             self.player.destroy()
         if self.player_2 is not None:
             self.player_2.destroy()
 
     def __del__(self):
-        global g_interrupt
+        global g_interrupt 
         g_interrupt = True
         if self.thread_2:
             self.thread_2.join()
+
 
 
 # ==============================================================================
@@ -408,7 +413,6 @@ class World(object):
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
-
     def __init__(self, world, start_in_autopilot):
         self._autopilot_enabled = start_in_autopilot
         if isinstance(world.player, carla.Vehicle):
@@ -465,7 +469,7 @@ class KeyboardControl(object):
                 elif event.key == K_c:
                     world.next_weather()
                 elif event.key == K_g:
-                    # world.toggle_radar()
+                    #world.toggle_radar()
                     world.restart()
                 elif event.key == K_BACKQUOTE:
                     world.camera_manager.next_sensor()
@@ -474,14 +478,14 @@ class KeyboardControl(object):
                 elif event.key == K_w and (pygame.key.get_mods() & KMOD_CTRL):
                     if world.constant_velocity_enabled:
                         world.player.disable_constant_velocity()
-                        world.player_2.disalbe_constant_velocity()
+                        #world.player_2.disalbe_constant_velocity()
                         world.constant_velocity_enabled = False
-                        # world.hud.notification("Disabled Constant Velocity Mode")
+                        #world.hud.notification("Disabled Constant Velocity Mode")
                     else:
-                        world.player.enable_constant_velocity(carla.Vector3D(10, 0, 0))
-                        world.player_2.enable_constant_velocity(carla.Vector3D(7.5, 0, 0))
+                        world.player.enable_constant_velocity(carla.Vector3D(14, 0, 0))
+                        #world.player_2.enable_constant_velocity(carla.Vector3D(7.5, 0, 0))
                         world.constant_velocity_enabled = True
-                        # world.hud.notification("Enabled Constant Velocity Mode at 60 km/h")
+                        #world.hud.notification("Enabled Constant Velocity Mode at 60 km/h")
                 elif event.key == K_o:
                     try:
                         if world.doors_are_open:
@@ -603,13 +607,13 @@ class KeyboardControl(object):
                 # Set automatic control-related vehicle lights
                 if self._control.brake:
                     current_lights |= carla.VehicleLightState.Brake
-                else:  # Remove the Brake flag
+                else: # Remove the Brake flag
                     current_lights &= ~carla.VehicleLightState.Brake
                 if self._control.reverse:
                     current_lights |= carla.VehicleLightState.Reverse
-                else:  # Remove the Reverse flag
+                else: # Remove the Reverse flag
                     current_lights &= ~carla.VehicleLightState.Reverse
-                if current_lights != self._lights:  # Change the light state only if necessary
+                if current_lights != self._lights: # Change the light state only if necessary
                     self._lights = current_lights
                     world.player.set_light_state(carla.VehicleLightState(self._lights))
             elif isinstance(self._contrakerControl):
@@ -617,36 +621,50 @@ class KeyboardControl(object):
             world.player.apply_control(self._control)
 
     def _parse_vehicle_keys(self, keys, milliseconds):
-        if keys[K_UP] or keys[K_w]:
-            g_player_action = True
+        global g_player_action_w, g_player_action_s, g_player_action_a, g_player_action_d
+
+        if (keys[K_UP] or keys[K_w]) and not (pygame.key.get_mods() & KMOD_CTRL):
+            g_player_action_w = True
             self._control.throttle = min(self._control.throttle + 0.01, .6)
         else:
+            g_player_action_w = False
             self._control.throttle = 0.0
 
+
         if keys[K_DOWN] or keys[K_s]:
-            g_player_action = True
+            g_player_action_s = True
             self._control.brake = min(self._control.brake + 0.2, 1)
         else:
+            g_player_action_s = False
             self._control.brake = 0
-
         steer_increment = 5e-4 * milliseconds
+
+
         if keys[K_LEFT] or keys[K_a]:
-            g_player_action = True
             if self._steer_cache > 0:
+                g_player_action_a = True
                 self._steer_cache = 0
             else:
+                g_player_action_a = True
                 self._steer_cache -= steer_increment
+
+
         elif keys[K_RIGHT] or keys[K_d]:
-            g_player_action = True
             if self._steer_cache < 0:
+                g_player_action_d = True
                 self._steer_cache = 0
             else:
+                g_player_action_d = True
                 self._steer_cache += steer_increment
         else:
+            g_player_action_d = False
+            g_player_action_a = False
             self._steer_cache = 0.0
         self._steer_cache = min(0.7, max(-0.7, self._steer_cache))
         self._control.steer = round(self._steer_cache, 1)
         self._control.hand_brake = keys[K_SPACE]
+        #g_player_action = False
+
 
     def _parse_walker_keys(self, keys, milliseconds, world):
         self._control.speed = 0.0
@@ -667,245 +685,6 @@ class KeyboardControl(object):
     @staticmethod
     def _is_quit_shortcut(key):
         return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)
-
-
-# ==============================================================================
-# -- Warnleuchte ---------------------------------------------------------------
-# Diese Klasse simuliert eine Warnleuchte auf der imaginären Instrumententafel
-# Eine Warnleuchte hat folgende Haupt-Zustände:
-#   initialisiert - entspricht einem gründen Punkt am Bildschirm (unten rechts)
-#   warnung(niedrig/hoch) - entspricht einem oder zwei roten Punkten auf dem Bildschirm
-#   ausgeschaltet - entspricht einem schwarzen Punkt (=Warnleuchte leuchtet nicht)
-#   fehlerhaft - entspricht einem orangenden Punkt (=technischer Fehler)
-#
-# Wichtige Instanzvariablen sind Links auf __world und __world.aebs
-# Ddie Klasse World(__world) ist damit bekannt, deren Source-Code sich im der gleichen Source-Code datei befindet.
-#
-# Öffentliche Methoden
-# void render() zeichnet die Warnleuchte am Display(rechts, unten) und erwartet surface of pygame als Parameter
-# void setWorld() muss unmittelbar nach dem Initialisieren der Klasse aufgerufen werden. (wäre z.B. auch in Konstuktor angebracht)
-# void reset() wird immer dann aufgerufen, wenn AEBS ein/ausgeschaltet wird.
-# https://www.pygame.org/docs/ref/draw.html
-# ==============================================================================
-class Warnleuchte:
-
-    __world = None #Link zu der Welt
-    #__display = None #Link auf Screen, wo die Leuchte angezeigt werden soll
-    #__hud = None #Link auf Anzeige-Instrumente (falls überhaupt nötig)
-    #__aebs = None #Link auf das NBA, um zustände abzufrage und um benachrichtigt zu werden, fall ein Zustand sich ändert.
-
-    #Alle möglichen Zustände der Warnleute am InstrumentenBrett
-    __ZUSTAND_NOT_INIT = "zustand_not_init"
-    __ZUSTAND_ERROR = "zustand_error"
-    __ZUSTAND_INIT = "zustand_init"
-    __ZUSTAND_AUS = "zustand_aus"
-    __ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
-    __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
-    __ZUSTAND_UNFALL = "zustand_unfall"
-    __zustand = __ZUSTAND_NOT_INIT #Akueller Stand im Augenblick __zustaende[0]
-
-    __displayChecked = False
-    __displayCheckedStatus = __ZUSTAND_NOT_INIT
-    __displayCheckedTicker = 1
-
-    def setWorld(self, world):
-        self.__world = world
-
-    def __init__(self):
-        self.reset(self)
-
-    def __aktualisiereZustand(self): # no return, only check and setting of the actual status value
-        if self.__world is None:
-            self.__zustand = self.__ZUSTAND_ERROR
-            print(f"Die Warnleuchte kenn die Welt nicht. Warnleuchte-Zustand={self.__zustand}")
-        elif self.__world is not None:
-            if self.__world.aebs is None:
-                self.__zustand = self.__ZUSTAND_ERROR
-                print(f"Die Warnleuchte kenn die Welt, aber das Objekt AEBS ist nicht initialisiert. Warnleuchte-Zustand={self.__zustand}")
-            else: # Welt ist bekannt, AEBS ist bekannt
-                #self.__world.aebs.get_current_speed(self.__world)
-                if self.__world.aebs.active == True:
-                    self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
-
-                    # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                    self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
-                    self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
-
-                    currentAebsSpeed = self.__world.aebs.speed
-
-                    currentAebsDistance = self.__world.aebs.distance # Distance aus dem AEBS auslesen. Wird am 21.05.2023 nicht von Alexander verwendet, weil noch nicht genau.
-
-                    currentObstacleDistance = self.__world.obstacle_sensor.getCurrentObstacleDictance(1000) #maximal eine Sekunde alt, sonst 0.
-                    if currentObstacleDistance>0:
-                        currentAebsDistance = currentObstacleDistance # Überschreiben, weil am 21.05.2023 POC-Obstacle gemacht wird. Es scheint besser zu funktionieren als im AEBS
-                        print("Abstand aus dem ObstacleSensor")
-                    else:
-                        currentAebsDistance = g_least_distance  # Distanz-aus der Karte nehmen, weil der Abstand aus AEBS NOCH nicht funktioniert
-                        #print("Warnung: Abstand direkt aus der Karte")
-
-                    activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
-                    rueckwaertsgang = self.__world.player.get_control().reverse
-
-                    if rueckwaertsgang:
-                        self.__zustand = self.__ZUSTAND_AUS
-                    elif currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed < activeSpeed: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                        #Faust-Formel aus der Fahrschule
-                        bremsweg = (currentAebsSpeed / 10) * (currentAebsSpeed / 10) #Fahrschul-Formel
-                        reaktionsweg = (currentAebsSpeed / 10) * 3 #Fahrschul-Formel
-
-                        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
-                        bremsweg = bremsweg / 2
-                        reaktionsweg = reaktionsweg / 2
-
-                        # Zu Testzwecken um 50% verringern. (!)
-                        anhalteWeg = bremsweg + reaktionsweg
-                        anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
-                        anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
-                        if currentAebsDistance <= 0.0: #keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
-                                self.__zustand = self.__ZUSTAND_INIT
-                        elif currentAebsDistance <= anhalteWegWarnungHigh:
-                                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currentAebsDistance <= anhalteWegWarnungLow:
-                                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currentAebsDistance >= anhalteWegWarnungLow:
-                                self.__zustand = self.__ZUSTAND_INIT
-                        else:
-                                self.__zustand = self.__ZUSTAND_ERROR
-                                print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-                        print(f"Abstand={currentAebsDistance:.2f}, Warnleuchte={self.__zustand}, Bremsweg={bremsweg:.2f}, Reaktionsweg={reaktionsweg:.2f} Anhaltweg={anhalteWeg:.2f}, AnhalteWegWarnungLow={anhalteWegWarnungLow:.2f}, anhalteWegWarnungHigh={anhalteWegWarnungHigh:.2f}, Nearly vehicles distance={g_least_distance:.2f}")
-                    else:
-                        self.__zustand = self.__ZUSTAND_ERROR
-                        print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-
-                else: #AEBS ist nicht aktiv
-                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
-
-        else:
-            self.__zustand = self.__ZUSTAND_ERROR
-            print(f"Die Warnleuchte kann den aktuellen eigen Zustand nicht ermitteln. Der Fehler is unbekannt. Zustand={self.__zustand}")
-
-    def reset(self):
-        self.__displayChecked = False
-        self.__displayCheckedStatus = self.__ZUSTAND_NOT_INIT
-        self.__displayCheckedTicker = 1
-
-    def __displayCheck(self, display): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
-        if self.__displayChecked == False:
-            self.__displayCheckedTicker = self.__displayCheckedTicker + 1
-            #print(f"displayCheckedTicker={self.__displayCheckedTicker}")
-
-            # alle Leuchten leuchten für einen Augenblick auf
-            ticker = 10
-            if self.__displayCheckedTicker >= 0 and self.__displayCheckedTicker<ticker*2:
-                self.__zustand = self.__ZUSTAND_NOT_INIT
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*2 and self.__displayCheckedTicker<ticker*3:
-                self.__zustand = self.__ZUSTAND_ERROR
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*3 and self.__displayCheckedTicker<ticker*4:
-                self.__zustand = self.__ZUSTAND_INIT
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*4 and self.__displayCheckedTicker<ticker*5:
-                self.__zustand = self.__ZUSTAND_AUS
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*5 and self.__displayCheckedTicker<ticker*6:
-                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                self.__paint(self, display)
-                return
-            if self.__displayCheckedTicker>=ticker*6 and self.__displayCheckedTicker<ticker*7:
-                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                self.__paint(self, display)
-                return
-            #if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8: #Unfall nicht anzeigen beim Check.
-            #    self.__zustand = self.__ZUSTAND_UNFALL
-            #    self.__paint(self, display)
-            #    return
-            if self.__displayCheckedTicker>=ticker*8 and self.__displayCheckedTicker<ticker*9:
-                self.__zustand = self.__ZUSTAND_NOT_INIT
-                self.__paint(self, display)
-                return
-            self.__displayChecked = True
-            return
-
-        else: return
-
-
-#    def render2(self):
-#        if self.__aebs != None and  self.__hud != None and self.__surface != None:
-#           self.repaint(self, self.__aebs, self.__hud, self.__surface)
-#        else: print("Warning: Warnleuchte.repaint() nicht möglich")
-
-    def render(self, display):
-        if display is not None:
-            if self.__displayChecked == True:
-                self.__aktualisiereZustand(self) # aktuellen Zusand von AEBS holen
-                self.__paint(self, display)
-            else: self.__displayCheck(self, display)  #pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
-        else: print("no rendering, display is  None")
-
-
-    def __findColorByZusand(self, zustand):
-        WHITE = (255, 255, 255)
-        BLUE = (0, 0, 255)
-        GREEN = (31, 94, 10) #GREEN = (0, 255, 0)
-        RED = (255, 0, 0)
-        ORANGE = (255,165,0)
-        BLACK = TEXTCOLOR = (0, 0, 0)
-        if zustand == self.__ZUSTAND_NOT_INIT:
-            return WHITE
-        elif zustand == self.__ZUSTAND_ERROR:
-            return ORANGE
-        elif zustand == self.__ZUSTAND_INIT:
-            return GREEN
-        elif zustand == self.__ZUSTAND_AUS:
-            return BLACK
-        elif zustand == self.__ZUSTAND_WARNUNG_LOW:
-            return RED
-        elif zustand == self.__ZUSTAND_WARNUNG_HIGH:
-            return RED
-        elif zustand == self.__ZUSTAND_UNFALL:
-            return RED
-        else:
-            return ORANGE # Im Zweifel Error
-
-    def __paint(self, display):
-        (display_width, display_height) = display.get_size()
-        warnleuchte_radius = 20
-        (offset_x, offset_y) = (display_width-20, display_height-20) #400, 100
-        if self.__zustand == self.__ZUSTAND_NOT_INIT:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_ERROR:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_INIT:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_AUS:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_WARNUNG_LOW:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_WARNUNG_HIGH:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
-            return
-        if self.__zustand == self.__ZUSTAND_UNFALL:
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
-            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 4), warnleuchte_radius)
-            return
 
 
 # ==============================================================================
@@ -933,6 +712,14 @@ class HUD(object):
         self._show_info = True
         self._info_text = []
         self._server_clock = pygame.time.Clock()
+        self.aebs_is_enabled = True
+        self.image = pygame.image.load("./images/warning.png")
+        self.image_rect = self.image.get_rect()
+        self.image_rect.topright = (width - 10, 10)
+        self.width = width
+        self.height = height
+        self.distance = None
+
 
     def on_world_tick(self, timestamp):
         self._server_clock.tick()
@@ -952,23 +739,19 @@ class HUD(object):
         t = world.player.get_transform()
         v = world.player.get_velocity()
         c = world.player.get_control()
-        obstacle_distance = "Obstacle sensor distance: "
-        if world is not None:
-            if world.obstacle_sensor is not None:
-                obstacle_distance = (f"Obstacle sensor distance: {int(world.obstacle_sensor.getCurrentObstacleDictance(100))} m")
-        # compass = world.imu_sensor.compass
-        # heading = 'N' if compass > 270.5 or compass < 89.5 else ''
-        # heading += 'S' if 90.5 < compass < 269.5 else ''
-        # heading += 'E' if 0.5 < compass < 179.5 else ''
-        # heading += 'W' if 180.5 < compass < 359.5 else ''
-        # colhist = world.collision_sensor.get_collision_history()
-        # collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
-        # max_col = max(1.0, max(collision))
-        c  # ollision = [x / max_col for x in collision]
+        #compass = world.imu_sensor.compass
+        #heading = 'N' if compass > 270.5 or compass < 89.5 else ''
+        #heading += 'S' if 90.5 < compass < 269.5 else ''
+        #heading += 'E' if 0.5 < compass < 179.5 else ''
+        #heading += 'W' if 180.5 < compass < 359.5 else ''
+        #colhist = world.collision_sensor.get_collision_history()
+        #collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
+        #max_col = max(1.0, max(collision))
+        #collision = [x / max_col for x in collision]
         vehicles = world.world.get_actors().filter('vehicle.*')
         world.aebs.get_current_speed(world)
         world.aebs.get_current_distance(world)
-        # print(world.radar_sensor)
+        #print(world.radar_sensor)
         self._info_text = [
             'Server:  % 16.0f FPS' % self.server_fps,
             'Client:  % 16.0f FPS' % clock.get_fps(),
@@ -977,15 +760,14 @@ class HUD(object):
             'Map:     % 20s' % world.map.name.split('/')[-1],
             'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
             '',
-            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)),
-            # u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
-            # 'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
-            # 'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
+            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
+            #u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
+            #'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
+            #'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
             'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
-            # 'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
+            #'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
             'Height:  % 18.0f m' % t.location.z,
             'AEBS: %23.0f ' % world.aebs.active,
-            obstacle_distance,
             '']
         if isinstance(c, carla.VehicleControl):
             self._info_text += [
@@ -1000,26 +782,22 @@ class HUD(object):
             self._info_text += [
                 ('Speed:', c.speed, 0.0, 5.556),
                 ('Jump:', c.jump)]
-        # self._info_text += [
-        # '',
-        # 'Collision:',
-        # collision,
-        # '',
-        # 'Number of vehicles: % 8d' % len(vehicles)]
+        #self._info_text += [
+           #'',
+            #'Collision:',
+            #collision,
+            #'',
+            #'Number of vehicles: % 8d' % len(vehicles)]
         if len(vehicles) > 1:
             self._info_text += ['Nearby vehicles:']
-            distance = lambda l: math.sqrt(
-                (l.x - t.location.x) ** 2 + (l.y - t.location.y) ** 2 + (l.z - t.location.z) ** 2)
+            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
             vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
-            global g_least_distance
-            g_least_distance = 0
             for d, vehicle in sorted(vehicles, key=lambda vehicles: vehicles[0]):
                 if d > 200.0:
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
+                self.distance = d
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-                if d < g_least_distance or g_least_distance==0:
-                    g_least_distance = d
 
     def toggle_info(self):
         self._show_info = not self._show_info
@@ -1031,6 +809,11 @@ class HUD(object):
         self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, display):
+        if not self.aebs_is_enabled:
+            image_scaled = pygame.transform.scale(self.image, (self.width // 8, self.height // 7))
+            image_rect = image_scaled.get_rect()
+            image_rect.bottomleft = (10, self.height - 10)
+            display.blit(image_scaled, image_rect)
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
             info_surface.set_alpha(100)
@@ -1109,7 +892,6 @@ class FadingText(object):
 
 class HelpText(object):
     """Helper class to handle text output using pygame"""
-
     def __init__(self, font, width, height):
         lines = __doc__.split('\n')
         self.font = font
@@ -1132,7 +914,6 @@ class HelpText(object):
         if self._render:
             display.blit(self.surface, self.pos)
 
-
 # ==============================================================================
 # -- AEBS ----------------------------------------------------------------------
 # ==============================================================================
@@ -1141,8 +922,6 @@ class HelpText(object):
 class AEBS(object):
     def __init__(self, parent_actor, hud, world):
         self.active = True
-        #self.warning_image = pygame.image.load("./images/warning.png")
-        self.warning_image = pygame.image.load("./images/warning-sign.jpg")
         self.hud = hud
         self.player = parent_actor
         self.speed = 0
@@ -1151,56 +930,82 @@ class AEBS(object):
         self.world = world
         self.action = 0
         self.beep_sound = pygame.mixer.Sound("./sounds/beep.mp3")
+        self.beep_sound.set_volume(0.2)
 
     def toggle_aebs(self):
         if self.active:
             self.active = not self.active
             print("Turned AEBS off!")
+            self.hud.aebs_is_enabled = False
             pygame.mixer.Sound.play(self.beep_sound)
             self.test_aebs()
         else:
             self.active = not self.active
-            print("Truner AEBS on!")
+            self.hud.aebs_is_enabled = True
+            print("Turning AEBS on!")
             self.test_aebs()
 
+    
     def test(self):
-        global g_interrupt, g_player_action
+        global g_interrupt, g_player_action_w, g_player_action_s, g_player_action_a, g_player_action_d
         while not g_interrupt:
+            if g_player_action_w or g_player_action_s or g_player_action_a or g_player_action_d:
+                print("its true")
             while self.world.constant_velocity_enabled:
-                print("checking stuff", " ---- distance:", self.distance)
-                if self.distance < 4 and self.action == 0 and not g_player_action:
-                    pygame.mixer.Sound.play(self.beep_sound)
+                """with open('output.txt', 'a') as file:
+                    sys.stdout = file
+                    # Hier können Sie Ihren Code mit Print-Anweisungen schreiben
+                    print("checking stuff", " ---- distance:", self.distance)
+                    # Wiederherstellen der Standardausgabe
+                    sys.stdout = sys.__stdout__"""
+                # Druckt konstant die Entfernung in eine Datei, sodass man diese später schöner ablesen kann da, dass
+                # Terminal ab einer bestimmten Zeilenanzahl die vorherigen Zeilen löscht
+                # Just for testing
+                #print("Phase 0", " ---- distance:", self.distance)
+                
+                if self.distance < 40 and self.action == 0 and (not g_player_action_w or not g_player_action_s or not g_player_action_a or not g_player_action_d):
+                    #print("Phase 1", " ---- distance:", self.distance)
+                    self.collision_warning()
                     self.action += 1
-                if self.distance < 3 and self.action == 1 and not g_player_action:
-                    pygame.mixer.Sound.play(self.beep_sound)
-                    time.sleep(.1)
-                    pygame.mixer.Sound.play(self.beep_sound)
-
+                if self.distance < 30 and self.action == 1 and (not g_player_action_w or not g_player_action_s or not g_player_action_a or not g_player_action_d):
+                    #print("Phase 2", " ---- distance:", self.distance)
+                    self.collision_warning_2()
                     self.action += 1
-                if self.distance < 2 and self.action == 2 and not g_player_action:
+                if self.distance < 23.5 and self.action == 2 and (not g_player_action_w or not g_player_action_s or not g_player_action_a or not g_player_action_d):
+                    #print("Phase 3", " ---- distance:", self.distance)
                     self.world.player.disable_constant_velocity()
                     self.world.constant_velocity_enabled = False
-                    self.player.apply_control(carla.VehicleControl(brake=1))
+                    while self.speed != 0 and (not g_player_action_w or not g_player_action_s or not g_player_action_a or not g_player_action_d):
+                        self.player.apply_control(carla.VehicleControl(brake=1))
                     self.action += 1
-                if self.action == 3 and self.speed == 0 and not g_player_action:
+                if self.action == 3 and self.speed == 0 and (not g_player_action_w or not g_player_action_s or not g_player_action_a or not g_player_action_d):
                     self.player.apply_control(carla.VehicleControl(brake=0))
                     self.action = 0
-                if g_player_action:
+                if g_player_action_w or g_player_action_s or g_player_action_a or g_player_action_d:
+                    #print("Phase 4", " -- ")
+                    self.player.disable_constant_velocity()
+                    self.world.constant_velocity_enabled = False
                     self.player.apply_control(carla.VehicleControl(brake=0))
                     self.action = 0
+                    while g_player_action_w or g_player_action_s or g_player_action_a or g_player_action_d:
+                        ""
+                    
+
+
 
     def get_current_speed(self, world):
-
         velocity = world.player.get_velocity()
-        current_speed = 3.6 * math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+        current_speed = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
         self.speed = current_speed
-        # print(self.speed)
+        #print(self.speed)
         self.activate_at_speed()
 
+        
     def get_current_distance(self, world):
         global g_distance
-        self.distance = g_distance
-        # print(self.distance)
+        self.distance = self.hud.distance
+        #print(self.distance)
+
 
     def activate_at_speed(self):
         if self.speed >= 15:
@@ -1210,26 +1015,45 @@ class AEBS(object):
             if self.active:
                 self.toggle_aebs()"""
 
+    def calc_prime(self):
+        primes = []
+        for num in range(2, 51):
+            is_prime = True
+            for i in range(2, int(num ** 0.5) + 1):
+                if num % i == 0:
+                    is_prime = False
+                    break
+            if is_prime:
+                primes.append(num)
+        return primes
+
+    def aebs_checks(self):
+        try:
+            self.calc_prime()
+        except ValueError as error:
+            print("Fehler aufgetreten:", error)
+
     def test_aebs(self):
         print("Testing AEBS functionality...")
         if not self.active:
             print("ERROR: AEBS system is not active.")
             return
         try:
-            #
-            # Perform AEBS system test here
-            #
+            self.aebs_checks()
             print("AEBS system test successful.")
         except Exception as e:
+            pygame.mixer.Sound.play(self.beep_sound)
             print("ERROR: AEBS system test failed with exception:", e)
+
+
+
 
     def disable_on_failure(self):
         try:
-            #
-            # Perform AEBS system test here
-            #
+            self.aebs_checks()
             print("AEBS system test successful.")
         except Exception as e:
+            pygame.mixer.Sound.play(self.beep_sound)
             print("ERROR: AEBS system test failed with exception:", e)
             self.system_failure_warning()
             self.active = False
@@ -1260,31 +1084,19 @@ class AEBS(object):
 
     def collision_warning(self):
         print("WARNING: Collision detected. Please take immediate action to avoid impact.")
-        self.mixer.music.set_volume(0.2)
-        self.mixer.music.load("collision.mp3")
-        self.mixer.music.play()
-        screen = pygame.display.set_mode((300, 300))
-        screen.blit(self.warning_image, (0, 0))
-        pygame.display.flip()
-        # Wait for warning to be acknowledged
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    return
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        return
-                    else:
-                        # Warning acknowledged, hide warning image
-                        pygame.quit()
-                        return
+        pygame.mixer.Sound.play(self.beep_sound)
+    
+    def collision_warning_2(self):
+        print("WARNING: Collision detected. Please take immediate action to avoid impact.")
+        pygame.mixer.Sound.play(self.beep_sound)
+        time.sleep(.18)
+        pygame.mixer.Sound.play(self.beep_sound)
 
 
 # ==============================================================================
 # -- DistanceSensor ------------------------------------------------------------
 # ==============================================================================
+
 
 
 class DistanceSensor(object):
@@ -1301,33 +1113,28 @@ class DistanceSensor(object):
         print("created ")
         self.reset()
 
+
     def reset(self):
-        self.rgb_image = None;
-        self.semantic_image = None;
-        self.distance = None
-        self.prev_kmph = 0;
-        self.actor_list = [];
-        skip_episode = False;
-        kmph = None
-        self.bump = False;
-        self.crossed_threshold = False
+        self.rgb_image = None; self.semantic_image = None; self.distance = None
+        self.prev_kmph = 0; self.actor_list = []; skip_episode = False; kmph = None
+        self.bump = False; self.crossed_threshold = False
         self.attach_sensors()
         while not self.distance:
             ""
         # Ensure lead is ahead of ego before start
-        # print(self.distance, " --- ", MAX_DISTANCE)
+        #print(self.distance, " --- ", MAX_DISTANCE)
         if self.distance < MAX_DISTANCE:
-            # print("we made it")
-            """ lead_speed = random.uniform(0.40, 0.55)
-             ego_speed = random.uniform(0.65, 0.80)
-             print("speed: ", lead_speed, ego_speed)
-             self.lead.apply_control(carla.VehicleControl(throttle=0.3))
-             self.ego.apply_control(carla.VehicleControl(throttle=0.4))
- 
-             velocity = self.ego.get_velocity()
-             kmph = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)  
-             self.episode_start = time.time()"""
-            # print("speed: ", lead_speed, ego_speed)
+            #print("we made it")
+           """ lead_speed = random.uniform(0.40, 0.55)
+            ego_speed = random.uniform(0.65, 0.80)
+            print("speed: ", lead_speed, ego_speed)
+            self.lead.apply_control(carla.VehicleControl(throttle=0.3))
+            self.ego.apply_control(carla.VehicleControl(throttle=0.4))
+
+            velocity = self.ego.get_velocity()
+            kmph = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)  
+            self.episode_start = time.time()"""
+           # print("speed: ", lead_speed, ego_speed)
 
         else:
             self.destroy_actor()
@@ -1335,8 +1142,9 @@ class DistanceSensor(object):
 
         state = (self.rgb_image, self.semantic_image, self.distance, kmph)
         return state, skip_episode
+        
 
-    def position_behind(self):
+    def position_behind(self): 
         lead_location = random.choice(self.world.get_map().get_spawn_points())
         ego_location = carla.Transform(lead_location.location, lead_location.rotation)
         if lead_location.rotation.yaw > 80 and lead_location.rotation.yaw < 100:
@@ -1368,26 +1176,21 @@ class DistanceSensor(object):
     def preprocess_semantic(self, image):
         image_data = np.array(image.raw_data)
         image_data = image_data.reshape((SEMANTIC_IMG_HEIGHT, SEMANTIC_IMG_WIDTH, 4))
-        image_data = image_data[:, :, :3]
+        image_data = image_data[:,:,:3]
         self.semantic_image = image_data
         self.distance = self.get_distance(self.semantic_image)
-        # time.sleep(0.05)
+        #time.sleep(0.05)
 
     def preprocess_rgb(self, image):
         image_data = np.array(image.raw_data)
-        image_data = image_data.reshape((RGB_IMG_HEIGHT, RGB_IMG_WIDTH, 4))
-        image_data = image_data[300:600, 0:800, :]
-        hmin = 0;
-        hmax = 255;
-        smin = 0;
-        smax = 80;
-        vmin = 180;
-        vmax = 255
+        image_data = image_data.reshape((RGB_IMG_HEIGHT, RGB_IMG_WIDTH, 4))       
+        image_data = image_data[300:600,0:800,:]
+        hmin = 0; hmax = 255; smin = 0; smax = 80; vmin = 180; vmax = 255
         bgrImage = cv2.cvtColor(image_data, cv2.COLOR_BGRA2BGR)
         yuvImage = cv2.cvtColor(bgrImage, cv2.COLOR_BGR2YUV)
-        yuvImage[:, :, 0] = cv2.equalizeHist(yuvImage[:, :, 0])
-        yuvImage[:, 0, :] = cv2.equalizeHist(yuvImage[:, 0, :])
-        yuvImage[0, :, :] = cv2.equalizeHist(yuvImage[0, :, :])
+        yuvImage[:,:,0] = cv2.equalizeHist(yuvImage[:,:,0])
+        yuvImage[:,0,:] = cv2.equalizeHist(yuvImage[:,0,:])
+        yuvImage[0,:,:] = cv2.equalizeHist(yuvImage[0,:,:])
         normalized = cv2.cvtColor(yuvImage, cv2.COLOR_YUV2RGB)
         hsvImage = cv2.cvtColor(normalized, cv2.COLOR_RGB2HSV)
         lower = (hmin, smin, vmin)
@@ -1396,9 +1199,9 @@ class DistanceSensor(object):
         edgeImage = cv2.Canny(filter, 100, 200)
         img = cv2.resize(edgeImage, (200, 75))
         self.rgb_image = img
-        # time.sleep(0.05)
-
-    def step(self, action):
+        #time.sleep(0.05)
+    
+    def step(self, action): 
         if self.distance < ACTION_THRESHOLD:
             self.crossed_threshold = True
             if action == 0:
@@ -1411,33 +1214,27 @@ class DistanceSensor(object):
                 self.ego.apply_control(carla.VehicleControl(brake=1))
         skip_episode = False
         velocity = self.ego.get_velocity()
-        kmph = 3.6 * math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
-        deceleration = kmph - self.prev_kmph
-        alpha = 0.001;
-        beta = 0.1;
-        mu = 0.01;
-        nu = 100;
-        done = False
+        kmph = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)   
+        deceleration = kmph - self.prev_kmph 
+        alpha = 0.001; beta = 0.1; mu = 0.01; nu = 100; done = False
         if self.distance < CRASH_DISTANCE:
             self.destroy_actor()
-            self.bump = True;
-            done = True
+            self.bump = True; done = True
         elif self.crossed_threshold and self.distance > ACTION_THRESHOLD:
             self.destroy_actor()
             done = True
-        reward = -(alpha * (self.distance) ** 2 + beta) * deceleration - (mu * kmph ** 2 + nu) * self.bump
+        reward = -(alpha * (self.distance)**2 + beta) * deceleration - (mu * kmph**2 + nu) * self.bump     
         self.prev_kmph = kmph
         if self.episode_start + MAX_SECONDS_PER_EPISODE < time.time():
             self.destroy_actor()
-            skip_episode = True;
-            done = True
+            skip_episode = True; done = True
         state = (self.rgb_image, self.semantic_image, self.distance, kmph)
         return state, reward, done, skip_episode
+    
 
     def get_distance(self, semantic_image):
         global g_distance
-        percieved_pixel_count = 0;
-        vehicle_pixel_count = 0
+        percieved_pixel_count = 0; vehicle_pixel_count = 0
         for layer in semantic_image:
             for pixel in layer:
                 if pixel[2] == 10:
@@ -1446,6 +1243,7 @@ class DistanceSensor(object):
                 percieved_pixel_count = vehicle_pixel_count
             vehicle_pixel_count = 0
 
+        
         width = self.lead.bounding_box.extent.x * 2
         if percieved_pixel_count > 0:
             distance = (width * FOCAL_LENGTH) / percieved_pixel_count
@@ -1454,7 +1252,7 @@ class DistanceSensor(object):
             print("coulnd't get distance")
             distance = 0
             g_distance = distance
-        return distance
+        return distance     
 
     def destroy_actor(self):
         for actor in self.actor_list:
@@ -1462,6 +1260,7 @@ class DistanceSensor(object):
                 if actor.__class__ != carla.libcarla.Vehicle:
                     actor.stop()
                 actor.destroy()
+   
 
 
 # ==============================================================================
@@ -1497,7 +1296,7 @@ class CollisionSensor(object):
         actor_type = get_actor_display_name(event.other_actor)
         self.hud.notification('Collision with %r' % actor_type)
         impulse = event.normal_impulse
-        intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
@@ -1522,21 +1321,16 @@ class CameraManager(object):
 
         if not self._parent.type_id.startswith("walker.pedestrian"):
             self._camera_transforms = [
-                (carla.Transform(carla.Location(x=-2.0 * bound_x, y=+0.0 * bound_y, z=2.0 * bound_z),
-                                 carla.Rotation(pitch=8.0)), Attachment.SpringArm),
-                (
-                carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)), Attachment.Rigid),
-                (carla.Transform(carla.Location(x=+1.9 * bound_x, y=+1.0 * bound_y, z=1.2 * bound_z)),
-                 Attachment.SpringArm),
-                (carla.Transform(carla.Location(x=-2.8 * bound_x, y=+0.0 * bound_y, z=4.6 * bound_z),
-                                 carla.Rotation(pitch=6.0)), Attachment.SpringArm),
-                (carla.Transform(carla.Location(x=-1.0, y=-1.0 * bound_y, z=0.4 * bound_z)), Attachment.Rigid)]
+                (carla.Transform(carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z), carla.Rotation(pitch=8.0)), Attachment.SpringArm),
+                (carla.Transform(carla.Location(x=+0.8*bound_x, y=+0.0*bound_y, z=1.3*bound_z)), Attachment.Rigid),
+                (carla.Transform(carla.Location(x=+1.9*bound_x, y=+1.0*bound_y, z=1.2*bound_z)), Attachment.SpringArm),
+                (carla.Transform(carla.Location(x=-2.8*bound_x, y=+0.0*bound_y, z=4.6*bound_z), carla.Rotation(pitch=6.0)), Attachment.SpringArm),
+                (carla.Transform(carla.Location(x=-1.0, y=-1.0*bound_y, z=0.4*bound_z)), Attachment.Rigid)]
         else:
             self._camera_transforms = [
                 (carla.Transform(carla.Location(x=-2.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=1.6, z=1.7)), Attachment.Rigid),
-                (
-                carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArm),
+                (carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
 
@@ -1547,18 +1341,16 @@ class CameraManager(object):
             ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)', {}],
             ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
             ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)', {}],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette,
-             'Camera Semantic Segmentation (CityScapes Palette)', {}],
-            ['sensor.camera.instance_segmentation', cc.CityScapesPalette,
-             'Camera Instance Segmentation (CityScapes Palette)', {}],
+            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)', {}],
+            ['sensor.camera.instance_segmentation', cc.CityScapesPalette, 'Camera Instance Segmentation (CityScapes Palette)', {}],
             ['sensor.camera.instance_segmentation', cc.Raw, 'Camera Instance Segmentation (Raw)', {}],
             ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}],
             ['sensor.camera.dvs', cc.Raw, 'Dynamic Vision Sensor', {}],
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB Distorted',
-             {'lens_circle_multiplier': '3.0',
-              'lens_circle_falloff': '3.0',
-              'chromatic_aberration_intensity': '0.5',
-              'chromatic_aberration_offset': '0'}],
+                {'lens_circle_multiplier': '3.0',
+                'lens_circle_falloff': '3.0',
+                'chromatic_aberration_intensity': '0.5',
+                'chromatic_aberration_offset': '0'}],
             ['sensor.camera.optical_flow', cc.Raw, 'Optical Flow', {}],
         ]
         world = self._parent.get_world()
@@ -1665,63 +1457,6 @@ class CameraManager(object):
 
 
 # ==============================================================================
-# -- ObstacleSensor() ----------------------------------------------------------
-# https://carla.readthedocs.io/en/latest/ref_sensors/#obstacle-detector
-# https://github.com/carla-simulator/carla/blob/master/Docs/ref_sensors.md#obstacle-detector
-# -- Versuch: Anscheinend gibt es einen Sensor, welcher Hindernisse erkennen kann..
-# source code analog zu dem Source aus  https://www.youtube.com/watch?v=om8klsBj4rc&t=14s, An in depth look at CARLA's sensors: https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbm44LTE2dFRkMTRPSGZuYTg5QXM4NE9RWVJIZ3xBQ3Jtc0ttc01VdlZsYWhoTFZsVmZram14MUxYZEw0WXp4cFp6ZFcydXNSS2k2aUgyTGVNd052SzhFRHhyTDA0dGVrQ0hKN0dWN2EtMzNPQ0NiekVjcHlXMXB4UUpnelktb19pU0J2SHNJME5TeXpCanlzck9wQQ&q=https%3A%2F%2Fcarla-releases.s3.eu-west-3.amazonaws.com%2FDocs%2FSensors_code.zip&v=om8klsBj4rc
-# ==============================================================================
-class ObstacleSensor:
-
-    __obstacle_sensor = None
-    __camera = None
-    __world = None
-    __player = None
-    __current_obstacle = []
-
-    def getCurrentObstacleDictance(self, maxAlterDesHindernissesInMillis):
-        try:
-            if len(self.__current_obstacle) > 0:
-                distance = self.__current_obstacle['distance']
-                myTimeStamp = self.__current_obstacle['myTimeStamp']
-                timeStamp = time.time()
-                t_diff = timeStamp-myTimeStamp
-                if (t_diff < maxAlterDesHindernissesInMillis):
-                    return distance
-                else: return 0.0
-            else: return 0.0
-        except Exception as e:
-            print(type(e))  # the exception type
-            print(e.args)  # arguments stored in .args
-            print(e)  # __str__ allows args to be printed directly,
-            return 0.0 #keine Hindernisse
-
-    #Parameter: _player = carla-vehicle, _world is unsere lokale klasse World aus manual_control.py
-    def __init__(self, _player, _world):
-        self.__world = _world #Zeiger auf MyClientWorld wirde gemerkt
-        self.__player = _player #Zeiger auf Vehicle wird gemerkt
-        self.__attach(self.__world, self.__player) #Obstacle Sensor wird erzeugt und das Vehicle PER CALLBAcK-Funktion gebunden.
-
-    #sihe https://github.com/carla-simulator/carla/blob/master/Docs/ref_sensors.md
-    #https://carla.readthedocs.io/en/0.9.5/cameras_and_sensors/#sensorotherobstacle
-    #Doku zum bostacle sensor https://github.com/carla-simulator/carla/blob/master/Docs/ref_sensors.md#obstacle-detector
-    def __attach(self, _world, _vehicle):
-        bp_lib = _world.world.get_blueprint_library() #BluePrint-Library wird ermittelt
-        # Sensor wird dem Fahrzeug angehängt
-        obstacle_bp = bp_lib.find('sensor.other.obstacle') #der Obscatale Sensoer Blue print wird ermittelt
-        obstacle_bp.set_attribute('hit_radius', '0.5') #Parameter aus dem fremden Source, nicht klar, was genau sie machen, es akkan aber in der Doku von Carla nachgelesen werden. Radius of the trace
-        obstacle_bp.set_attribute('distance', '50') #Distance to throw the trace to. https://carla.readthedocs.io/en/0.9.5/cameras_and_sensors/#sensorotherobstacle
-        self.__obstacle_sensor = _world.world.spawn_actor(obstacle_bp, carla.Transform(), attach_to=_vehicle) #Der Sensor wird erstellt(gespawnt) und an das Fahrzeug gebunden
-        # Starte den Sensor, damit daten empfangen werden können
-        self.__obstacle_sensor.listen(lambda event: self.__obstacle_callback(event)) # Diese Methode ist gekürzt, da keine Camera-Parameter mehr benötight.
-        print("ObstacleSensor.__attached(...)")
-#
-    def __obstacle_callback(self, event): # call back des Obstacle Sensors
-        if 'vehicle' in event.other_actor.type_id:  # "static" wird vermutlich alle unbeweglichen Objekte wie ein Gebäude oder ein gepraktes Auto ausschließen
-            self.__current_obstacle = {'type_id': event.other_actor.type_id, 'frame': event.frame, 'timestamp':event.timestamp, 'actor':event.actor, 'other_actor':event.other_actor, 'distance':event.distance, 'myTimeStamp':time.time()}
-
-
-# ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
@@ -1729,8 +1464,10 @@ class ObstacleSensor:
 def game_loop(args):
     pygame.init()
     pygame.font.init()
+    #pygame.image.load("./images/warning.png")
     world = None
     original_settings = None
+
 
     try:
         client = carla.Client(args.host, args.port)
@@ -1755,7 +1492,7 @@ def game_loop(args):
         display = pygame.display.set_mode(
             (args.width, args.height),
             pygame.HWSURFACE | pygame.DOUBLEBUF)
-        display.fill((0, 0, 0))
+        display.fill((0,0,0))
         pygame.display.flip()
 
         hud = HUD(args.width, args.height)
@@ -1793,6 +1530,220 @@ def game_loop(args):
         pygame.quit()
 
 
+class Warnleuchte:
+
+    __world = None #Link zu der Welt
+
+    #Alle möglichen Zustände der Warnleute am InstrumentenBrett
+    __ZUSTAND_NOT_INIT = "zustand_not_init"
+    __ZUSTAND_ERROR = "zustand_error"
+    __ZUSTAND_INIT = "zustand_init"
+    __ZUSTAND_AUS = "zustand_aus"
+    __ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+    __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+    __ZUSTAND_UNFALL = "zustand_unfall"
+    __zustand = __ZUSTAND_NOT_INIT #Akueller Stand im Augenblick __zustaende[0]
+
+    #Variablen für reset.
+    __displayChecked = False
+    __displayCheckedStatus = __ZUSTAND_NOT_INIT
+    __displayCheckedTicker = 1
+
+    def setWorld(self, world):
+        self.__world = world
+
+        #    def render2(self):
+        #        if self.__aebs != None and  self.__hud != None and self.__surface != None:
+        #           self.repaint(self, self.__aebs, self.__hud, self.__surface)
+        #        else: print("Warning: Warnleuchte.repaint() nicht möglich")
+
+    def render(self, display):
+       if display is not None:
+           if self.__displayChecked == True:
+              self.__aktualisiereZustand(self)  # aktuellen Zusand von AEBS holen
+              self.__paint(self, display)
+           else:
+              self.__displayCheck(self, display)  # pygame.draw.rect(display, "yellow", [450, 110, 70, 40], 3, border_radius=15)  # Alex, Test-Zeichnen im Feld
+       else:
+           print("no rendering, display is  None")
+
+    def __init__(self):
+        self.reset(self)
+
+    def __aktualisiereZustand(self): # no return, only check and setting of the actual status value
+        if self.__world is None:
+            self.__zustand = self.__ZUSTAND_ERROR
+            print(f"Die Warnleuchte kenn die Welt nicht. Warnleuchte-Zustand={self.__zustand}")
+        elif self.__world is not None:
+            if self.__world.aebs is None:
+                self.__zustand = self.__ZUSTAND_ERROR
+                print(f"Die Warnleuchte kenn die Welt, aber das Objekt AEBS ist nicht initialisiert. Warnleuchte-Zustand={self.__zustand}")
+            else: # Welt ist bekannt, AEBS ist bekannt
+                #self.__world.aebs.get_current_speed(self.__world)
+                if self.__world.aebs.active == True:
+                    self.__zustand = self.__ZUSTAND_INIT # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
+
+                    # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
+
+                    self.__world.aebs.get_current_distance(self.__world) # Distance im AEBS aktualisieren
+                    self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
+
+                    currentAebsSpeed = self.__world.aebs.speed #AEBS auslesen
+                    currentAebsDistance = self.__world.aebs.distance #AEBS auslesen
+
+                    activeSpeed = 15 #Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
+                    rueckwaertsgang = self.__world.player.get_control().reverse
+
+                    if rueckwaertsgang:
+                        self.__zustand = self.__ZUSTAND_AUS
+                    elif currentAebsSpeed <= 0: # Im Stehen ist AEBS nicht aktiv
+                        self.__zustand = self.__ZUSTAND_INIT
+                    elif currentAebsSpeed < activeSpeed: # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
+                        self.__zustand = self.__ZUSTAND_INIT
+                    elif currentAebsSpeed >= activeSpeed: # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
+
+                        #Faust-Formel aus der Fahrschule
+                        bremsweg = (currentAebsSpeed / 10) * (currentAebsSpeed / 10) #Fahrschul-Formel
+                        reaktionsweg = (currentAebsSpeed / 10) * 3 #Fahrschul-Formel
+
+                        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
+                        bremsweg = bremsweg / 2
+                        reaktionsweg = reaktionsweg / 2
+
+                        # Zu Testzwecken um 50% verringern. (!)
+                        anhalteWeg = bremsweg + reaktionsweg
+                        anhalteWegWarnungLow = anhalteWeg * 1.5 # 50% mehr so viel wie benötigt
+                        anhalteWegWarnungHigh = anhalteWeg * 1.2 # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
+                        if currentAebsDistance <= 0.0: #keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
+                                self.__zustand = self.__ZUSTAND_INIT
+                        elif currentAebsDistance <= anhalteWegWarnungHigh:
+                                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                        elif currentAebsDistance <= anhalteWegWarnungLow:
+                                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                        elif currentAebsDistance >= anhalteWegWarnungLow:
+                                self.__zustand = self.__ZUSTAND_INIT
+                        else:
+                                self.__zustand = self.__ZUSTAND_ERROR
+                                print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+                        print(f"Abstand={currentAebsDistance:.2f}, Warnleuchte={self.__zustand}, Bremsweg={bremsweg:.2f}, Reaktionsweg={reaktionsweg:.2f} Anhaltweg={anhalteWeg:.2f}, AnhalteWegWarnungLow={anhalteWegWarnungLow:.2f}, anhalteWegWarnungHigh={anhalteWegWarnungHigh:.2f}")
+                    else:
+                        self.__zustand = self.__ZUSTAND_ERROR
+                        print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
+
+                else: #AEBS ist nicht aktiv
+                    self.__zustand = self.__ZUSTAND_AUS # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
+
+        else:
+            self.__zustand = self.__ZUSTAND_ERROR
+            print(f"Die Warnleuchte kann den aktuellen eigen Zustand nicht ermitteln. Der Fehler is unbekannt. Zustand={self.__zustand}")
+
+    def reset(self):
+        self.__displayChecked = False
+        self.__displayCheckedStatus = self.__ZUSTAND_NOT_INIT
+        self.__displayCheckedTicker = 1
+
+    def __displayCheck(self, display): #Methode zeigt initialisiert die Leuchte und zeigt alle möglichen Zustände, bevor sie AEBS-Zustand anzeigt
+        if self.__displayChecked == False:
+            self.__displayCheckedTicker = self.__displayCheckedTicker + 1
+            #print(f"displayCheckedTicker={self.__displayCheckedTicker}")
+
+            # alle Leuchten leuchten für einen Augenblick auf
+            ticker = 10
+            if self.__displayCheckedTicker >= 0 and self.__displayCheckedTicker<ticker*2:
+                self.__zustand = self.__ZUSTAND_NOT_INIT
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*2 and self.__displayCheckedTicker<ticker*3:
+                self.__zustand = self.__ZUSTAND_ERROR
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*3 and self.__displayCheckedTicker<ticker*4:
+                self.__zustand = self.__ZUSTAND_INIT
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*4 and self.__displayCheckedTicker<ticker*5:
+                self.__zustand = self.__ZUSTAND_AUS
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*5 and self.__displayCheckedTicker<ticker*6:
+                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+                self.__paint(self, display)
+                return
+            if self.__displayCheckedTicker>=ticker*6 and self.__displayCheckedTicker<ticker*7:
+                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+                self.__paint(self, display)
+                return
+            #if self.__displayCheckedTicker>=ticker*7 and self.__displayCheckedTicker<ticker*8: #Unfall nicht anzeigen beim Check.
+            #    self.__zustand = self.__ZUSTAND_UNFALL
+            #    self.__paint(self, display)
+            #    return
+            if self.__displayCheckedTicker>=ticker*8 and self.__displayCheckedTicker<ticker*9:
+                self.__zustand = self.__ZUSTAND_NOT_INIT
+                self.__paint(self, display)
+                return
+            self.__displayChecked = True
+            return
+
+        else: return
+
+
+
+
+    def __findColorByZusand(self, zustand):
+        WHITE = (255, 255, 255)
+        BLUE = (0, 0, 255)
+        GREEN = (31, 94, 10) #GREEN = (0, 255, 0)
+        RED = (255, 0, 0)
+        ORANGE = (255,165,0)
+        BLACK = TEXTCOLOR = (0, 0, 0)
+        if zustand == self.__ZUSTAND_NOT_INIT:
+            return WHITE
+        elif zustand == self.__ZUSTAND_ERROR:
+            return ORANGE
+        elif zustand == self.__ZUSTAND_INIT:
+            return GREEN
+        elif zustand == self.__ZUSTAND_AUS:
+            return BLACK
+        elif zustand == self.__ZUSTAND_WARNUNG_LOW:
+            return RED
+        elif zustand == self.__ZUSTAND_WARNUNG_HIGH:
+            return RED
+        elif zustand == self.__ZUSTAND_UNFALL:
+            return RED
+        else:
+            return ORANGE # Im Zweifel Error
+
+    def __paint(self, display):
+        (display_width, display_height) = display.get_size()
+        warnleuchte_radius = 20
+        (offset_x, offset_y) = (display_width-20, display_height-20) #400, 100
+        if self.__zustand == self.__ZUSTAND_NOT_INIT:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_ERROR:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_INIT:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_AUS:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_WARNUNG_LOW:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_WARNUNG_HIGH:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
+            return
+        if self.__zustand == self.__ZUSTAND_UNFALL:
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 2), warnleuchte_radius)
+            pygame.draw.circle(display, self.__findColorByZusand(self, self.__zustand), (offset_x, offset_y - warnleuchte_radius * 4), warnleuchte_radius)
+            return
+
+
+
 # ==============================================================================
 # -- main() --------------------------------------------------------------------
 # ==============================================================================
@@ -1824,8 +1775,8 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='720x480', #default='1280x720',
-        help='window resolution (default: 720x480)') #help='window resolution (default: 1280x720)')
+        default='1280x720',
+        help='window resolution (default: 1280x720)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
@@ -1870,4 +1821,5 @@ def main():
 
 
 if __name__ == '__main__':
+
     main()
