@@ -438,7 +438,7 @@ class KeyboardControl(object):
                 elif event.key == K_u:
                     world.aebs.toggle_aebs()
                     if world.hud.warnleuchte is not None:
-                        world.hud.warnleuchte.reset(world.hud.warnleuchte)
+                        world.hud.warnleuchte.reset(world.hud.warnleuchte)  # Reset nach dem Ein-/Ausschalten des AEBS
                 elif event.key == K_BACKSPACE:
                     if self._autopilot_enabled:
                         world.player.set_autopilot(False)
@@ -1085,6 +1085,78 @@ class AEBS(object):
         time.sleep(.18)
         pygame.mixer.Sound.play(self.beep_sound)
 
+    # 0__ZUSTAND_NOT_INIT = "zustand_not_init"
+    # 1 __ZUSTAND_ERROR = "zustand_error"
+    # 2 __ZUSTAND_INIT = "zustand_init"
+    # 3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+    # 4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+    # 5 __ZUSTAND_UNFALL = "zustand_unfall"
+    # 6  __ZUSTAND_AUS = "zustand_aus"
+    def getZustand(self):
+
+        if self.active:  # AEBS ist AN
+
+            if self.world is None:  # MyWorld aktiv
+                return 0  # __ZUSTAND_NOT_INIT = "zustand_not_init"
+            if self.world.world is None:  # sim_world aktiv
+                return 0  # __ZUSTAND_NOT_INIT = "zustand_not_init"
+            if self.world.aebs is None:  # verweis zu AEBS korrekt initialisiert
+                return 0  # __ZUSTAND_NOT_INIT = "zustand_not_init"
+            if self.world.player.get_control().reverse:  # Rückwärtsgang
+                return 6  # 6  __ZUSTAND_AUS = "zustand_aus"
+            self.world.aebs.get_current_speed(self.world)  # Speed im AEBS aktualisieren
+            currentAebsSpeed = self.world.aebs.speed  # AEBS auslesen
+            if currentAebsSpeed < 15:  # Ab dieser Geschwindigkeit reagiert AEBS überhaupt, sonst ist AEBS zwar an, aber ohne Funktion
+                return 2  # 2 __ZUSTAND_INIT = "zustand_init"
+            self.world.aebs.get_current_distance(self.world)  # Distance im AEBS aktualisieren
+            currentAebsDistance = self.world.aebs.distance  # AEBS auslesen
+            (anhalteWeg, anhalteWegWarnungLow, anhalteWegWarnungHigh) = self.__getAnhalteWeg(currentAebsDistance,
+                                                                                             currentAebsSpeed)
+
+            bremswegBerechnung = False
+            if bremswegBerechnung:
+                if currentAebsDistance <= 0.0:  # keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
+                    return 0  # 0__ZUSTAND_NOT_INIT = "zustand_not_init"
+                elif currentAebsDistance <= anhalteWegWarnungHigh:
+                    return 4  # 4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+                elif currentAebsDistance <= anhalteWegWarnungLow:
+                    return 3  # 3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+                elif currentAebsDistance >= anhalteWegWarnungLow:
+                    return 2  # 2 __ZUSTAND_INIT = "zustand_init"
+                else:
+                    print(
+                        f"Fehler: AEBS ein, aber Abstand ist unbekannt. Geschwindigkeit={currentAebsSpeed}, Abstand={currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={anhalteWeg, anhalteWegWarnungLow, anhalteWegWarnungHigh}")
+                    return 1  # 1 __ZUSTAND_ERROR = "zustand_error"
+            else:  # Logik wie beim Call von Funktionen aus AEBS oben
+                if self.distance < 30:
+                    return 4  # 4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+                elif self.distance < 40:
+                    return 3  # 3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+                else:  # größere Entferntung >> alles gut
+                    return 2  # 2 __ZUSTAND_INIT = "zustand_init"
+        else:  # AEBS ist AUS
+            return 6  # 6  __ZUSTAND_AUS = "zustand_aus"
+        print(f"Fehler im AEBS beim Zustand-Ermitteln.")
+        return 1  # 1 __ZUSTAND_ERROR = "zustand_error"
+
+    def __getAnhalteWeg(self, _currentAebsDistance, _currentAebsSpeed):
+        # Faust-Formel aus der Fahrschule
+        _bremsweg = (_currentAebsSpeed / 10) * (_currentAebsSpeed / 10)  # Fahrschul-Formel
+        _reaktionsweg = (_currentAebsSpeed / 10) * 3  # Fahrschul-Formel
+
+        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
+        _bremsweg = _bremsweg / 2
+        _reaktionsweg = _reaktionsweg / 2
+
+        # Zu Testzwecken um 50% verringern. (!)
+        _anhalteWeg = _bremsweg + _reaktionsweg
+        _anhalteWegWarnungLow = _anhalteWeg * 1.5  # 50% mehr so viel wie benötigt
+        _anhalteWegWarnungHigh = _anhalteWeg * 1.2  # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
+
+        # print(f"Geschwindigkeit={_currentAebsSpeed}, Abstand={_currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={_anhalteWeg, _anhalteWegWarnungLow, _anhalteWegWarnungHigh}")
+
+        return (_anhalteWeg, _anhalteWegWarnungLow, _anhalteWegWarnungHigh)
+
 
 # ==============================================================================
 # -- DistanceSensor ------------------------------------------------------------
@@ -1127,7 +1199,7 @@ class DistanceSensor(object):
              print("speed: ", lead_speed, ego_speed)
              self.lead.apply_control(carla.VehicleControl(throttle=0.3))
              self.ego.apply_control(carla.VehicleControl(throttle=0.4))
- 
+
              velocity = self.ego.get_velocity()
              kmph = 3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)  
              self.episode_start = time.time()"""
@@ -1329,7 +1401,8 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=-2.0 * bound_x, y=+0.0 * bound_y, z=2.0 * bound_z),
                                  carla.Rotation(pitch=8.0)), Attachment.SpringArm),
                 (
-                carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)), Attachment.Rigid),
+                    carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)),
+                    Attachment.Rigid),
                 (carla.Transform(carla.Location(x=+1.9 * bound_x, y=+1.0 * bound_y, z=1.2 * bound_z)),
                  Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=-2.8 * bound_x, y=+0.0 * bound_y, z=4.6 * bound_z),
@@ -1340,7 +1413,8 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=-2.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=1.6, z=1.7)), Attachment.Rigid),
                 (
-                carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArm),
+                    carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)),
+                    Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), Attachment.SpringArm),
                 (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
 
@@ -1559,6 +1633,11 @@ class Warnleuchte:
     __displayCheckedStatus = __ZUSTAND_NOT_INIT
     __displayCheckedTicker = 1
 
+    def tick(self):
+        if self.__world is not None:
+            print(f"tick, Warnleuchte")
+            t = True
+
     def setWorld(self, world):
         self.__world = world
 
@@ -1585,73 +1664,43 @@ class Warnleuchte:
         if self.__world is None:
             self.__zustand = self.__ZUSTAND_ERROR
             print(f"Die Warnleuchte kenn die Welt nicht. Warnleuchte-Zustand={self.__zustand}")
-        elif self.__world is not None:
+            return
+        if self.__world is not None:
             if self.__world.aebs is None:
                 self.__zustand = self.__ZUSTAND_ERROR
                 print(
                     f"Die Warnleuchte kenn die Welt, aber das Objekt AEBS ist nicht initialisiert. Warnleuchte-Zustand={self.__zustand}")
-            else:  # Welt ist bekannt, AEBS ist bekannt
-                # self.__world.aebs.get_current_speed(self.__world)
-                if self.__world.aebs.active == True:
-                    self.__zustand = self.__ZUSTAND_INIT  # AEBS ist aktiv, also ist der mindestzustand = Initialisiert
-
-                    # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                    self.__world.aebs.get_current_distance(self.__world)  # Distance im AEBS aktualisieren
-                    self.__world.aebs.get_current_speed(self.__world)  # Speed im AEBS aktualisieren self.__world.aebs
-
-                    currentAebsSpeed = self.__world.aebs.speed  # AEBS auslesen
-                    currentAebsDistance = self.__world.aebs.distance  # AEBS auslesen
-
-                    activeSpeed = 15  # Ab dieser Geschwindigkeit reagiert AEBS überhaupt, diese Werte sind normalerweise im AEBS kodiert. Aber zunächst hier
-                    rueckwaertsgang = self.__world.player.get_control().reverse
-
-                    if rueckwaertsgang:
-                        self.__zustand = self.__ZUSTAND_AUS
-                    elif currentAebsSpeed <= 0:  # Im Stehen ist AEBS nicht aktiv
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed < activeSpeed:  # Bis 15kmh ist AEBS nicht aktiv. Erst ab 15 kmh muss der AEBS überhaupt eingreifen (hardkodiert in AEBS zur Zeit, am 21.05.2023)
-                        self.__zustand = self.__ZUSTAND_INIT
-                    elif currentAebsSpeed >= activeSpeed:  # HIER MÜSSTEN DIE STATUS-Werte von AEBS kommen. Aber ich nehme zunächst was an
-
-                        # Faust-Formel aus der Fahrschule
-                        bremsweg = (currentAebsSpeed / 10) * (currentAebsSpeed / 10)  # Fahrschul-Formel
-                        reaktionsweg = (currentAebsSpeed / 10) * 3  # Fahrschul-Formel
-
-                        # Zu Testzwecken um 50% verringern. Denn so schnell kann man in der Simulation kaum fahren.
-                        bremsweg = bremsweg / 2
-                        reaktionsweg = reaktionsweg / 2
-
-                        # Zu Testzwecken um 50% verringern. (!)
-                        anhalteWeg = bremsweg + reaktionsweg
-                        anhalteWegWarnungLow = anhalteWeg * 1.5  # 50% mehr so viel wie benötigt
-                        anhalteWegWarnungHigh = anhalteWeg * 1.2  # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
-                        if currentAebsDistance <= 0.0:  # keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
-                            self.__zustand = self.__ZUSTAND_INIT
-                        elif currentAebsDistance <= anhalteWegWarnungHigh:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
-                        elif currentAebsDistance <= anhalteWegWarnungLow:
-                            self.__zustand = self.__ZUSTAND_WARNUNG_LOW
-                        elif currentAebsDistance >= anhalteWegWarnungLow:
-                            self.__zustand = self.__ZUSTAND_INIT
-                        else:
-                            self.__zustand = self.__ZUSTAND_ERROR
-                            print(
-                                f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-                        print(
-                            f"Abstand={currentAebsDistance:.2f}, Warnleuchte={self.__zustand}, Bremsweg={bremsweg:.2f}, Reaktionsweg={reaktionsweg:.2f} Anhaltweg={anhalteWeg:.2f}, AnhalteWegWarnungLow={anhalteWegWarnungLow:.2f}, anhalteWegWarnungHigh={anhalteWegWarnungHigh:.2f}")
-                    else:
-                        self.__zustand = self.__ZUSTAND_ERROR
-                        print(
-                            f"Fehler: AEBS ein, aber Abstand ist unbekannt. Status={self.__zustand}, Geschwindigkeit={currenAebsSpeed}, Abstand={currenAebsDistance}")
-
-                else:  # AEBS ist nicht aktiv
-                    self.__zustand = self.__ZUSTAND_AUS  # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
-
-        else:
-            self.__zustand = self.__ZUSTAND_ERROR
-            print(
-                f"Die Warnleuchte kann den aktuellen eigen Zustand nicht ermitteln. Der Fehler is unbekannt. Zustand={self.__zustand}")
+                return
+        # Welt ist bekannt, AEBS ist bekannt
+        # self.__world.aebs.get_current_speed(self.__world)
+        if self.__world.aebs.active:
+            # Werte aus AEBS auslesen
+            # 0__ZUSTAND_NOT_INIT = "zustand_not_init"
+            # 1 __ZUSTAND_ERROR = "zustand_error"
+            # 2 __ZUSTAND_INIT = "zustand_init"
+            # 3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+            # 4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+            # 5 __ZUSTAND_UNFALL = "zustand_unfall"
+            aebs_int_zustand = self.__world.aebs.getZustand()
+            if aebs_int_zustand == 0:  # Mapping(Umsetzen), AEBS-Zustand to Warnleuchte-Zustand
+                self.__zustand = self.__ZUSTAND_NOT_INIT
+            elif aebs_int_zustand == 1:
+                self.__zustand = self.__ZUSTAND_ERROR
+            elif aebs_int_zustand == 2:
+                self.__zustand = self.__ZUSTAND_INIT
+            elif aebs_int_zustand == 3:
+                self.__zustand = self.__ZUSTAND_WARNUNG_LOW
+            elif aebs_int_zustand == 4:
+                self.__zustand = self.__ZUSTAND_WARNUNG_HIGH
+            elif aebs_int_zustand == 5:
+                self.__zustand = self.__ZUSTAND_UNFALL
+            elif aebs_int_zustand == 6:
+                self.__zustand = self.__ZUSTAND_AUS
+            else:
+                self.__zustand = self.__ZUSTAND_ERROR
+        else:  # AEBS ist nicht aktiv
+            self.__zustand = self.__ZUSTAND_AUS  # weil z.B. zu das Fahrzeug langsam ODER aebs ausgeschaltet
+        # print(f"Zustand der Warnleuchte={self.__zustand} = AEBS-Zustand={aebs_int_zustand}")
 
     def reset(self):
         self.__displayChecked = False
