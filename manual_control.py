@@ -1094,6 +1094,7 @@ class AEBS(object):
     #3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
     #4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
     #5 __ZUSTAND_UNFALL = "zustand_unfall"
+    #6  __ZUSTAND_AUS = "zustand_aus"
     def getZustand(self):
 
         if self.active: #AEBS ist AN
@@ -1113,20 +1114,31 @@ class AEBS(object):
             self.world.aebs.get_current_distance(self.world)  # Distance im AEBS aktualisieren
             currentAebsDistance = self.world.aebs.distance  # AEBS auslesen
             (anhalteWeg,anhalteWegWarnungLow,anhalteWegWarnungHigh) = self.__getAnhalteWeg(currentAebsDistance,currentAebsSpeed)
-            if currentAebsDistance <= 0.0:  # keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
-                return 0 #0__ZUSTAND_NOT_INIT = "zustand_not_init"
-            elif currentAebsDistance <= anhalteWegWarnungHigh:
-                return 4 #4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
-            elif currentAebsDistance <= anhalteWegWarnungLow:
-                return 3 #3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
-            elif currentAebsDistance >= anhalteWegWarnungLow:
-                return 2 #2 __ZUSTAND_INIT = "zustand_init"
-            else:
-                print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Geschwindigkeit={currentAebsSpeed}, Abstand={currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={anhalteWeg,anhalteWegWarnungLow,anhalteWegWarnungHigh}")
-                return 1 #1 __ZUSTAND_ERROR = "zustand_error"
-            return 0 #__ZUSTAND_AUS = "zustand_aus"
+
+            bremswegBerechnung = False
+            if bremswegBerechnung:
+                if currentAebsDistance <= 0.0:  # keine Distance konnte ermittelt werden. Kein Hindernis in Sicht.
+                    return 0 #0__ZUSTAND_NOT_INIT = "zustand_not_init"
+                elif currentAebsDistance <= anhalteWegWarnungHigh:
+                    return 4 #4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+                elif currentAebsDistance <= anhalteWegWarnungLow:
+                    return 3 #3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+                elif currentAebsDistance >= anhalteWegWarnungLow:
+                    return 2 #2 __ZUSTAND_INIT = "zustand_init"
+                else:
+                    print(f"Fehler: AEBS ein, aber Abstand ist unbekannt. Geschwindigkeit={currentAebsSpeed}, Abstand={currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={anhalteWeg,anhalteWegWarnungLow,anhalteWegWarnungHigh}")
+                    return 1 #1 __ZUSTAND_ERROR = "zustand_error"
+            else: #Logik wie beim Call von Funktionen aus AEBS oben
+                if self.distance < 30:
+                    return 4  # 4 __ZUSTAND_WARNUNG_HIGH = "zustand_warning_high"
+                elif self.distance < 40:
+                    return 3 #3__ZUSTAND_WARNUNG_LOW = "zustand_warnung_low"
+                else: #größere Entferntung >> alles gut
+                    return 2 #2 __ZUSTAND_INIT = "zustand_init"
         else: #AEBS ist AUS
-            return 1 #__ZUSTAND_ERROR = "zustand_error"
+            return 6 #6  __ZUSTAND_AUS = "zustand_aus"
+        print(f"Fehler im AEBS beim Zustand-Ermitteln.")
+        return 1  # 1 __ZUSTAND_ERROR = "zustand_error"
 
     def __getAnhalteWeg(self,_currentAebsDistance,_currentAebsSpeed):
         # Faust-Formel aus der Fahrschule
@@ -1142,7 +1154,7 @@ class AEBS(object):
         _anhalteWegWarnungLow = _anhalteWeg * 1.5  # 50% mehr so viel wie benötigt
         _anhalteWegWarnungHigh = _anhalteWeg * 1.2  # 20% mehr als der Faher wirklich benötigt, bald wird as Auto eingreifen und selbstständig aggieren
 
-        print(f"Geschwindigkeit={_currentAebsSpeed}, Abstand={_currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={_anhalteWeg, _anhalteWegWarnungLow, _anhalteWegWarnungHigh}")
+        #print(f"Geschwindigkeit={_currentAebsSpeed}, Abstand={_currentAebsDistance}, Anhalteweg/Anhalteweg_low/Anhalteweg_high={_anhalteWeg, _anhalteWegWarnungLow, _anhalteWegWarnungHigh}")
 
         return(_anhalteWeg,_anhalteWegWarnungLow,_anhalteWegWarnungHigh)
 
